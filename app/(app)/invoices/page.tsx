@@ -4,16 +4,14 @@ import { useEffect, useState } from "react";
 import {
   Search,
   PlusCircle,
-  Filter,
-  Calendar,
-  ChevronDown,
-  ArrowDownUp,
-  List,
-  LayoutGrid,
   Star,
   Sparkles,
   FileText,
   Loader2,
+  Wallet,
+  CheckCircle2,
+  CircleDollarSign,
+  Layers,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -23,6 +21,7 @@ import { Drawer } from "@/components/ui/drawer";
 import { Input, Select } from "@/components/ui/input";
 import { RowMenu } from "@/components/ui/row-menu";
 import { UploadExtract, ModeTabs } from "@/components/upload-extract";
+import { BillView } from "@/components/bill-view";
 import type { ExtractedInvoice } from "@/lib/invoice-types";
 import { formatMoney, formatDate, cn } from "@/lib/utils";
 
@@ -34,8 +33,12 @@ interface Row {
   due: string;
   amount: number;
   paid: number;
+  items: number;
   status: "paid" | "partial" | "unpaid";
 }
+
+type SortKey = "recent" | "amount-desc" | "amount-asc";
+type StatusFilter = "all" | "paid" | "partial" | "unpaid";
 
 const usd = (n: number) => formatMoney(n, "INR");
 
@@ -60,6 +63,9 @@ export default function InvoicesPage() {
   const [favs, setFavs] = useState<Set<string>>(new Set());
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [q, setQ] = useState("");
+  const [viewId, setViewId] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [sortBy, setSortBy] = useState<SortKey>("recent");
 
   const upd = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
   const extracted = extractedData !== null;
@@ -154,6 +160,7 @@ export default function InvoicesPage() {
               due: r.invoice_date || "",
               amount: Number(r.total) || 0,
               paid: Number(r.amount_paid) || 0,
+              items: Array.isArray(r.items) ? r.items.length : 0,
               status: (r.status as Row["status"]) || "unpaid",
             }))
           : []
@@ -235,10 +242,25 @@ export default function InvoicesPage() {
   }
 
   const baseRows = serverRows ?? [];
-  const data = baseRows.filter(
-    (r) => q === "" || (r.client + r.project + r.id).toLowerCase().includes(q.toLowerCase())
-  );
+  const data = baseRows
+    .filter((r) => statusFilter === "all" || r.status === statusFilter)
+    .filter((r) => q === "" || (r.client + r.project + r.id).toLowerCase().includes(q.toLowerCase()))
+    .sort((a, b) =>
+      sortBy === "amount-desc" ? b.amount - a.amount : sortBy === "amount-asc" ? a.amount - b.amount : 0
+    );
   const allChecked = data.length > 0 && data.every((r) => sel.has(r.id));
+
+  // Summary across all bills (not just the filtered view)
+  const totalBilled = baseRows.reduce((s, r) => s + r.amount, 0);
+  const totalPaid = baseRows.reduce((s, r) => s + r.paid, 0);
+  const outstanding = Math.max(totalBilled - totalPaid, 0);
+  const counts = {
+    all: baseRows.length,
+    paid: baseRows.filter((r) => r.status === "paid").length,
+    partial: baseRows.filter((r) => r.status === "partial").length,
+    unpaid: baseRows.filter((r) => r.status === "unpaid").length,
+  };
+  const viewRow = viewId ? rawById[viewId] : null;
 
   function toggleFav(id: string) {
     setFavs((s) => {
@@ -257,53 +279,73 @@ export default function InvoicesPage() {
 
   return (
     <div className="space-y-5">
-      {/* Top bar */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative w-full sm:max-w-xs">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search"
-            className="h-10 w-full rounded-lg border border-border-strong bg-surface pl-9 pr-3 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          />
+      {/* Header */}
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight">Bills</h1>
+          <p className="text-sm text-muted-foreground">Upload a bill — AI reads every line and tax.</p>
         </div>
-        <Button onClick={openAdd} className="sm:self-end">
+        <Button onClick={openAdd}>
           <PlusCircle className="size-4" /> Upload a Bill
         </Button>
       </div>
 
-      {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-2">
-        <ToolbarBtn className="font-semibold text-foreground">
-          All Bills <ChevronDown className="size-4" />
-        </ToolbarBtn>
-        <ToolbarBtn>
-          <Filter className="size-4" /> Filter <ChevronDown className="size-4" />
-        </ToolbarBtn>
-        <ToolbarBtn>
-          <Calendar className="size-4" /> 1 Jun 25 - 30 Jun 25
-        </ToolbarBtn>
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <SummaryCard label="Total Billed" value={usd(totalBilled)} icon={Wallet} tone="primary" />
+        <SummaryCard label="Paid" value={usd(totalPaid)} icon={CheckCircle2} tone="success" />
+        <SummaryCard label="Outstanding" value={usd(outstanding)} icon={CircleDollarSign} tone="danger" />
+        <SummaryCard label="Bills" value={String(counts.all)} icon={FileText} tone="muted" />
+      </div>
 
-        <div className="ml-auto flex items-center gap-2">
-          <ToolbarBtn>
-            <ArrowDownUp className="size-4" /> Sort By <ChevronDown className="size-4" />
-          </ToolbarBtn>
-          <div className="inline-flex overflow-hidden rounded-lg border border-border-strong">
-            <button className="grid size-9 place-items-center bg-primary text-primary-foreground">
-              <List className="size-4" />
+      {/* Toolbar: status filter + search + sort */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="inline-flex flex-wrap items-center gap-1 rounded-md border border-border-strong bg-surface p-1">
+          {([
+            ["all", "All"],
+            ["unpaid", "Unpaid"],
+            ["partial", "Partial"],
+            ["paid", "Paid"],
+          ] as [StatusFilter, string][]).map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => setStatusFilter(key)}
+              className={cn(
+                "rounded-sm px-3 py-1.5 text-sm font-medium transition-colors",
+                statusFilter === key
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-surface-muted"
+              )}
+            >
+              {label} <span className="opacity-70">{counts[key]}</span>
             </button>
-            <button className="grid size-9 place-items-center text-muted-foreground hover:bg-surface-muted">
-              <LayoutGrid className="size-4" />
-            </button>
-          </div>
+          ))}
         </div>
+
+        <div className="relative ml-auto w-full sm:w-56">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search bills"
+            className="h-9 w-full rounded-md border border-border-strong bg-surface pl-9 pr-3 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          />
+        </div>
+        <select
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value as SortKey)}
+          className="h-9 rounded-md border border-border-strong bg-surface px-3 pr-8 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <option value="recent">Newest first</option>
+          <option value="amount-desc">Amount: high → low</option>
+          <option value="amount-asc">Amount: low → high</option>
+        </select>
       </div>
 
       {/* Table */}
-      <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-card">
+      <div className="overflow-hidden rounded-md border border-border bg-surface shadow-card">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[920px] text-sm">
+          <table className="w-full min-w-[960px] text-sm">
             <thead>
               <tr className="border-b border-border bg-surface-muted/60 text-left text-xs font-semibold text-muted-foreground">
                 <th className="w-10 px-4 py-3.5">
@@ -321,22 +363,27 @@ export default function InvoicesPage() {
                 <th className="px-4 py-3.5">Vendor</th>
                 <th className="px-4 py-3.5">GSTIN</th>
                 <th className="px-4 py-3.5">Date</th>
-                <th className="px-4 py-3.5">Amount</th>
-                <th className="px-4 py-3.5">Paid Amount</th>
+                <th className="px-4 py-3.5">Items</th>
+                <th className="px-4 py-3.5 text-right">Amount</th>
+                <th className="px-4 py-3.5 text-right">Paid</th>
                 <th className="px-4 py-3.5">Status</th>
-                <th className="px-4 py-3.5">Action</th>
+                <th className="px-4 py-3.5 text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {serverRows === null && (
-                <tr><td colSpan={10} className="px-4 py-12 text-center"><Loader2 className="mx-auto size-5 animate-spin text-muted-foreground" /></td></tr>
+                <tr><td colSpan={11} className="px-4 py-12 text-center"><Loader2 className="mx-auto size-5 animate-spin text-muted-foreground" /></td></tr>
               )}
               {serverRows && data.length === 0 && (
-                <tr><td colSpan={10} className="px-4 py-14 text-center text-sm text-muted-foreground">No invoices yet — click <span className="font-medium text-foreground">Add New Invoice</span> to upload a bill.</td></tr>
+                <tr><td colSpan={11} className="px-4 py-14 text-center text-sm text-muted-foreground">No bills here — click <span className="font-medium text-foreground">Upload a Bill</span> to add one.</td></tr>
               )}
               {data.map((r) => (
-                <tr key={r.uid ?? r.id} className="hover:bg-surface-muted/30">
-                  <td className="px-4 py-3.5">
+                <tr
+                  key={r.uid ?? r.id}
+                  onClick={() => r.uid && setViewId(r.uid)}
+                  className="cursor-pointer hover:bg-surface-muted/30"
+                >
+                  <td className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
                     <input
                       type="checkbox"
                       checked={sel.has(r.id)}
@@ -344,7 +391,7 @@ export default function InvoicesPage() {
                       className="size-4 rounded border-border-strong accent-primary"
                     />
                   </td>
-                  <td className="px-1 py-3.5">
+                  <td className="px-1 py-3.5" onClick={(e) => e.stopPropagation()}>
                     <button onClick={() => toggleFav(r.id)}>
                       <Star
                         className={cn(
@@ -356,7 +403,7 @@ export default function InvoicesPage() {
                       />
                     </button>
                   </td>
-                  <td className="px-4 py-3.5 font-medium text-foreground">{r.id}</td>
+                  <td className="px-4 py-3.5 font-medium text-primary">{r.id}</td>
                   <td className="px-4 py-3.5">
                     <div className="flex items-center gap-2.5">
                       <Avatar name={r.client} />
@@ -367,12 +414,21 @@ export default function InvoicesPage() {
                     {r.project}
                   </td>
                   <td className="px-4 py-3.5 text-muted-foreground">{r.due ? formatDate(r.due) : "—"}</td>
-                  <td className="px-4 py-3.5 text-foreground">{usd(r.amount)}</td>
-                  <td className="px-4 py-3.5 text-foreground">{usd(r.paid)}</td>
+                  <td className="px-4 py-3.5">
+                    {r.items > 0 ? (
+                      <span className="inline-flex items-center gap-1 rounded-sm bg-surface-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                        <Layers className="size-3" /> {r.items}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3.5 text-right font-medium text-foreground">{usd(r.amount)}</td>
+                  <td className="px-4 py-3.5 text-right text-muted-foreground">{usd(r.paid)}</td>
                   <td className="px-4 py-3.5">
                     <PayPill status={r.status} />
                   </td>
-                  <td className="px-4 py-3.5">
+                  <td className="px-4 py-3.5 text-right" onClick={(e) => e.stopPropagation()}>
                     {r.uid ? (
                       <RowMenu onEdit={() => openEdit(r.uid!)} onDelete={() => delInvoice(r.uid!)} label={`bill ${r.id}`} />
                     ) : null}
@@ -471,26 +527,61 @@ export default function InvoicesPage() {
           )}
         </div>
       </Drawer>
+
+      {/* Bill detail drawer */}
+      <Drawer
+        open={!!viewId}
+        onClose={() => setViewId(null)}
+        title="Bill details"
+        width="max-w-2xl"
+      >
+        {viewRow && (
+          <BillView
+            row={viewRow}
+            onEdit={() => {
+              const id = viewId!;
+              setViewId(null);
+              openEdit(id);
+            }}
+            onDelete={() => {
+              const id = viewId!;
+              setViewId(null);
+              delInvoice(id);
+            }}
+          />
+        )}
+      </Drawer>
     </div>
   );
 }
 
-function ToolbarBtn({
-  children,
-  className,
+function SummaryCard({
+  label,
+  value,
+  icon: Icon,
+  tone,
 }: {
-  children: React.ReactNode;
-  className?: string;
+  label: string;
+  value: string;
+  icon: React.ComponentType<{ className?: string }>;
+  tone: "primary" | "success" | "danger" | "muted";
 }) {
+  const toneCls = {
+    primary: "bg-primary-soft text-primary",
+    success: "bg-success-soft text-success",
+    danger: "bg-danger-soft text-danger",
+    muted: "bg-surface-muted text-muted-foreground",
+  }[tone];
   return (
-    <button
-      className={cn(
-        "inline-flex h-9 items-center gap-2 rounded-lg border border-border-strong bg-surface px-3 text-sm font-medium text-muted-foreground hover:bg-surface-muted",
-        className
-      )}
-    >
-      {children}
-    </button>
+    <div className="flex items-center gap-3 rounded-md border border-border bg-surface p-4 shadow-card">
+      <div className={cn("grid size-10 shrink-0 place-items-center rounded-md", toneCls)}>
+        <Icon className="size-5" />
+      </div>
+      <div className="min-w-0">
+        <div className="truncate text-xs text-muted-foreground">{label}</div>
+        <div className="truncate text-lg font-bold tracking-tight">{value}</div>
+      </div>
+    </div>
   );
 }
 

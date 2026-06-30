@@ -1,18 +1,9 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import {
-  Plus,
-  RefreshCw,
-  Unlink,
-  Loader2,
-  MessageCircle,
-  Landmark,
-} from "lucide-react";
+import { Plus, RefreshCw, Unlink, Loader2, ShieldCheck, History } from "lucide-react";
 import { toast } from "sonner";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { StatusBadge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/layout/page-header";
 
 interface Account {
@@ -25,7 +16,7 @@ interface Account {
 
 function GmailMark() {
   return (
-    <div className="grid size-10 place-items-center rounded-md bg-danger-soft">
+    <div className="grid size-10 shrink-0 place-items-center rounded-md border border-border bg-surface">
       <svg viewBox="0 0 24 24" className="size-5">
         <path fill="#4285F4" d="M3 19h3V8.5l6 4.3 6-4.3V19h3V6.2c0-1-1.2-1.6-2-1L12 10 5.9 5.2c-.8-.6-2 0-2 1z" />
         <path fill="#EA4335" d="M3 6.2 12 12.6 21 6.2c0-1-1.2-1.6-2-1L12 10 5 5.2c-.8-.6-2 0-2 1z" />
@@ -54,8 +45,7 @@ export default function ConnectorsPage() {
     try {
       const r = await fetch("/api/gmail/accounts");
       const j = await r.json();
-      if (Array.isArray(j)) setAccounts(j);
-      else setAccounts([]);
+      setAccounts(Array.isArray(j) ? j : []);
     } catch {
       setAccounts([]);
     }
@@ -93,130 +83,144 @@ export default function ConnectorsPage() {
     }
   }
 
-  async function disconnect(id: string) {
-    try {
-      await fetch("/api/gmail/accounts", {
-        method: "DELETE",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ id }),
-      });
-      toast("Account disconnected");
-      load();
-    } catch {
-      toast.error("Failed to disconnect");
-    }
+  function rescan() {
+    toast("Re-scan whole inbox?", {
+      description: "Reads every payment email again — even ones synced before. Uses some AI quota.",
+      action: {
+        label: "Re-scan",
+        onClick: async () => {
+          setSyncing(true);
+          try {
+            const c = await fetch("/api/gmail/rescan", { method: "POST" });
+            const cj = await c.json();
+            if (!c.ok) throw new Error(cj.error || "Re-scan failed");
+            const r = await fetch("/api/gmail/sync", { method: "POST" });
+            const j = await r.json();
+            if (!r.ok) throw new Error(j.error || "Sync failed");
+            if (j.rateLimited) {
+              toast(`Re-scanning — ${j.synced} pulled, AI is busy, the rest will follow shortly.`);
+            } else {
+              toast.success(`Re-scan complete — ${j.synced} payment${j.synced === 1 ? "" : "s"} pulled`);
+            }
+            load();
+          } catch (e) {
+            toast.error(e instanceof Error ? e.message : "Re-scan failed");
+          } finally {
+            setSyncing(false);
+          }
+        },
+      },
+      cancel: { label: "Cancel", onClick: () => {} },
+    });
   }
+
+  async function disconnect(id: string, email: string) {
+    toast(`Disconnect ${email}?`, {
+      action: {
+        label: "Disconnect",
+        onClick: async () => {
+          try {
+            await fetch("/api/gmail/accounts", {
+              method: "DELETE",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ id }),
+            });
+            toast.success("Account disconnected");
+            load();
+          } catch {
+            toast.error("Failed to disconnect");
+          }
+        },
+      },
+      cancel: { label: "Cancel", onClick: () => {} },
+    });
+  }
+
+  const connect = () => (window.location.href = "/api/gmail/connect");
+  const hasAccounts = accounts && accounts.length > 0;
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Connectors"
-        description="Connect Gmail so PayRecord can read your payment confirmations."
+        title="Gmail"
+        description="Connect Gmail so payments land here automatically — no forwarding, no spreadsheets."
         actions={
-          <div className="flex items-center gap-2">
-            {accounts && accounts.length > 0 && (
+          hasAccounts ? (
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" onClick={rescan} disabled={syncing} title="Re-read every email, including ones synced before">
+                <History className="size-4" /> Re-scan
+              </Button>
               <Button variant="outline" onClick={sync} disabled={syncing}>
                 {syncing ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
                 {syncing ? "Syncing…" : "Sync now"}
               </Button>
-            )}
-            <Button onClick={() => (window.location.href = "/api/gmail/connect")}>
-              <Plus className="size-4" /> Add Gmail Account
-            </Button>
-          </div>
+              <Button onClick={connect}>
+                <Plus className="size-4" /> Add account
+              </Button>
+            </div>
+          ) : undefined
         }
       />
 
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-muted-foreground">Gmail Accounts</h2>
-
-        {accounts === null && (
-          <div className="flex items-center gap-2 py-10 text-sm text-muted-foreground">
-            <Loader2 className="size-4 animate-spin" /> Loading…
+      {accounts === null ? (
+        <div className="flex items-center gap-2 py-16 text-sm text-muted-foreground">
+          <Loader2 className="size-4 animate-spin" /> Loading…
+        </div>
+      ) : !hasAccounts ? (
+        /* Empty state */
+        <div className="rounded-md border border-border bg-surface px-6 py-16 text-center shadow-card">
+          <div className="mx-auto w-fit">
+            <GmailMark />
           </div>
-        )}
-
-        {accounts && accounts.length === 0 && (
-          <Card>
-            <CardContent className="flex flex-col items-center gap-2 py-14 text-center">
-              <GmailMark />
-              <div className="mt-1 text-sm font-medium">No Gmail connected</div>
-              <div className="max-w-sm text-xs text-muted-foreground">
-                Connect a Gmail account to automatically pull bank, UPI and gateway payment emails.
-              </div>
-              <Button className="mt-2" onClick={() => (window.location.href = "/api/gmail/connect")}>
-                <Plus className="size-4" /> Connect Gmail
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-
-        {accounts && accounts.length > 0 && (
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <h3 className="mt-4 text-base font-semibold">Connect your Gmail</h3>
+          <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
+            PayRecord reads bank, UPI and gateway payment emails, then matches each one to a bill for you.
+          </p>
+          <Button className="mt-5" onClick={connect}>
+            <Plus className="size-4" /> Connect Gmail
+          </Button>
+        </div>
+      ) : (
+        <>
+          {/* Account list */}
+          <div className="divide-y divide-border overflow-hidden rounded-md border border-border bg-surface shadow-card">
             {accounts.map((a) => (
-              <Card key={a.id}>
-                <CardContent className="space-y-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <GmailMark />
-                      <div className="min-w-0">
-                        <div className="truncate font-medium">{a.email}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {a.payment_count} payments · last sync {timeAgo(a.last_sync_at)}
-                        </div>
-                      </div>
-                    </div>
-                    <StatusBadge status={a.status} kind="connection" />
+              <div key={a.id} className="flex items-center gap-4 px-4 py-4">
+                <GmailMark />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="truncate font-medium">{a.email}</span>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-success-soft px-2 py-0.5 text-xs font-medium text-success">
+                      <span className="size-1.5 rounded-full bg-success" /> Connected
+                    </span>
                   </div>
-                  <div className="flex items-center gap-1.5 border-t border-border pt-3">
-                    <Button variant="ghost" size="sm" onClick={sync} disabled={syncing}>
-                      <RefreshCw className="size-3.5" /> Sync
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-danger hover:bg-danger-soft"
-                      onClick={() => disconnect(a.id)}
-                    >
-                      <Unlink className="size-3.5" /> Disconnect
-                    </Button>
+                  <div className="mt-0.5 text-xs text-muted-foreground">
+                    {a.payment_count} payment{a.payment_count === 1 ? "" : "s"} · synced {timeAgo(a.last_sync_at)}
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted-foreground hover:bg-danger-soft hover:text-danger"
+                  onClick={() => disconnect(a.id, a.email)}
+                >
+                  <Unlink className="size-3.5" /> Disconnect
+                </Button>
+              </div>
             ))}
           </div>
-        )}
-      </section>
 
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-muted-foreground">Other Sources</h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {[
-            { name: "Bank Statement Feed", desc: "Auto-import payments from bank feeds", icon: Landmark },
-            { name: "WhatsApp Invoices", desc: "Import bills shared on WhatsApp", icon: MessageCircle },
-          ].map((c) => {
-            const Icon = c.icon;
-            return (
-              <Card key={c.name}>
-                <CardContent className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="grid size-10 place-items-center rounded-md bg-surface-muted text-muted-foreground">
-                      <Icon className="size-5" />
-                    </div>
-                    <div>
-                      <div className="font-medium">{c.name}</div>
-                      <div className="text-xs text-muted-foreground">{c.desc}</div>
-                    </div>
-                  </div>
-                  <span className="rounded-full bg-surface-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
-                    Soon
-                  </span>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      </section>
+          {/* How it works */}
+          <div className="flex items-start gap-3 rounded-md border border-border bg-surface-muted/40 px-4 py-3.5">
+            <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" />
+            <p className="text-sm text-muted-foreground">
+              PayRecord checks your inbox every few minutes and records each payment automatically. Deleting a payment
+              keeps it gone — use <span className="font-medium text-foreground">Re-scan</span> to pull every email
+              again from scratch.
+            </p>
+          </div>
+        </>
+      )}
     </div>
   );
 }
