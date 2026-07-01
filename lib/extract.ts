@@ -73,7 +73,44 @@ Rules:
 JSON shape:
 { "isPayment": boolean, "payee": string|null, "amount": number|null, "currency": string|null, "date": string|null, "reference": string|null, "utr": string|null, "mode": string|null, "channel": string|null, "accountDetail": string|null, "direction": "debit"|"credit"|null }`;
 
+/**
+ * Axis Bank vendor-payment alerts have a fixed wording, so parse them
+ * deterministically (100% accurate + free) instead of relying on the LLM,
+ * which mis-reads amounts and grabs footer codes as UTRs.
+ * e.g. "Vendor payment to DILRANJAN KUMAR of INR 30000.00 raised by ARUN
+ *       ARUN KUMAR has been successfully processed."
+ */
+function parseAxisVendorPayment(text: string): ExtractedPayment | null {
+  const t = text.replace(/\s+/g, " ");
+  const m = t.match(/payment to (.+?) of INR\s*([\d,]+(?:\.\d+)?)/i);
+  if (!m) return null;
+  const payee = m[1].replace(/\braised by\b.*$/i, "").trim();
+  const amount = Number(m[2].replace(/,/g, ""));
+  if (!payee || !Number.isFinite(amount) || amount <= 0) return null;
+  const dm = t.match(/\b(\d{2})-(\d{2})-(\d{4})\b/);
+  const date = dm ? `${dm[3]}-${dm[2]}-${dm[1]}` : null;
+  // Try to pick up a real UTR/RRN if present (12+ digits), never the footer code.
+  const utrMatch = t.match(/\b(?:UTR|RRN|Ref(?:erence)? No\.?)[:\s]*([A-Z0-9]{10,})\b/i);
+  return {
+    isPayment: true,
+    payee,
+    amount,
+    currency: "INR",
+    date,
+    reference: null,
+    utr: utrMatch ? utrMatch[1] : null,
+    mode: "Vendor Payment",
+    channel: "Axis Bank",
+    accountDetail: null,
+    direction: "debit",
+  };
+}
+
 export async function extractPaymentFromText(text: string): Promise<ExtractedPayment> {
+  // Fast, exact path for Axis Bank's fixed-format alerts.
+  const axis = parseAxisVendorPayment(text);
+  if (axis) return axis;
+
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) throw new Error("GROQ_API_KEY not set for payment extraction.");
   const groq = new Groq({ apiKey });

@@ -20,13 +20,18 @@ function str(v: unknown): string | null {
 
 async function getFetchDays() {
   try {
-    const rows = await sql`select key, value from app_settings where key in ('payment_days','bill_days')`;
+    const rows = await sql`select key, value from app_settings where key in ('payment_days','bill_days','payment_from')`;
     const m: Record<string, string> = {};
     for (const r of rows) m[r.key as string] = r.value as string;
     const clamp = (v: number, def: number) => (Number.isFinite(v) && v >= 1 ? Math.min(v, 365) : def);
-    return { paymentDays: clamp(Number(m.payment_days), 1), billDays: clamp(Number(m.bill_days), 60) };
+    return {
+      paymentDays: clamp(Number(m.payment_days), 1),
+      billDays: clamp(Number(m.bill_days), 60),
+      // Only look at payment emails from this sender (bank). Default: Axis Bank.
+      paymentFrom: (m.payment_from ?? "axis.bank.in").trim(),
+    };
   } catch {
-    return { paymentDays: 1, billDays: 60 };
+    return { paymentDays: 1, billDays: 60, paymentFrom: "axis.bank.in" };
   }
 }
 
@@ -59,8 +64,9 @@ export async function runPaymentSync(accounts: Account[]) {
   let synced = 0;
   let scanned = 0;
   let rateLimited = false;
-  const { paymentDays } = await getFetchDays();
-  const query = `newer_than:${paymentDays}d ${PAYMENT_FILTER}`;
+  const { paymentDays, paymentFrom } = await getFetchDays();
+  const fromClause = paymentFrom ? `from:(${paymentFrom}) ` : "";
+  const query = `newer_than:${paymentDays}d ${fromClause}${PAYMENT_FILTER}`;
 
   outer: for (const acc of accounts) {
     if (!acc.refresh_token) continue;
@@ -68,8 +74,12 @@ export async function runPaymentSync(accounts: Account[]) {
     client.setCredentials({ refresh_token: acc.refresh_token });
     const gmail = google.gmail({ version: "v1", auth: client });
 
-    const list = await gmail.users.messages.list({ userId: "me", q: query, maxResults: 6 });
-
+    let pageToken: string | undefined = undefined;
+    let listed = 0;
+    do {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const list: any = await gmail.users.messages.list({ userId: "me", q: query, maxResults: 25, pageToken });
+    pageToken = list.data.nextPageToken ?? undefined;
     for (const m of list.data.messages ?? []) {
       if (!m.id) continue;
       const seen = await sql`
@@ -97,16 +107,17 @@ export async function runPaymentSync(accounts: Account[]) {
       await sql`insert into scanned_emails (gmail_message_id, gmail_account_id) values (${m.id}, ${acc.id}) on conflict (gmail_message_id) do nothing`;
       if (!p.isPayment || !p.amount) continue;
 
-      // Skip if this same payment already exists (different email, same txn).
-      let dupRows;
+      // Dedupe ONLY on a strong unique key (UTR/reference). Axis vendor-payment
+      // alerts have no UTR, and the same vendor can legitimately be paid the same
+      // amount 2-3x a day — those are separate emails (unique gmail_message_id),
+      // so we keep them all rather than dropping repeats.
       if (p.utr) {
-        dupRows = await sql`select 1 from payments where utr = ${p.utr} limit 1`;
+        const dup = await sql`select 1 from payments where utr = ${p.utr} limit 1`;
+        if (dup.length) continue;
       } else if (p.reference) {
-        dupRows = await sql`select 1 from payments where reference = ${p.reference} and amount = ${p.amount} limit 1`;
-      } else {
-        dupRows = await sql`select 1 from payments where payee = ${p.payee} and amount = ${p.amount} and paid_on = ${p.date} limit 1`;
+        const dup = await sql`select 1 from payments where reference = ${p.reference} and amount = ${p.amount} limit 1`;
+        if (dup.length) continue;
       }
-      if (dupRows.length) continue;
 
       await sql`
         insert into payments (
@@ -120,6 +131,8 @@ export async function runPaymentSync(accounts: Account[]) {
       `;
       synced++;
     }
+    listed += list.data.messages?.length ?? 0;
+    } while (pageToken && !rateLimited && listed < 300);
 
     await sql`update gmail_accounts set last_sync_at = now() where id = ${acc.id}`;
   }

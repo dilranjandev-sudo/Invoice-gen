@@ -10,6 +10,7 @@ export function AutoSyncToggle() {
   const [on, setOn] = useState<boolean | null>(null);
   const [paymentDays, setPaymentDays] = useState("1");
   const [billDays, setBillDays] = useState("60");
+  const [paymentFrom, setPaymentFrom] = useState("axis.bank.in");
 
   useEffect(() => {
     fetch("/api/settings")
@@ -18,6 +19,7 @@ export function AutoSyncToggle() {
         setOn(s?.auto_sync_enabled !== "false");
         if (s?.payment_days) setPaymentDays(String(s.payment_days));
         if (s?.bill_days) setBillDays(String(s.bill_days));
+        if (s?.payment_from) setPaymentFrom(String(s.payment_from));
       })
       .catch(() => setOn(true));
   }, []);
@@ -76,6 +78,29 @@ export function AutoSyncToggle() {
           >
             <span className={cn("absolute top-0.5 size-5 rounded-full bg-white shadow-sm transition-all", on ? "left-[1.375rem]" : "left-0.5")} />
           </button>
+        </div>
+
+        <div className="border-t border-border" />
+
+        {/* Payment sender */}
+        <div>
+          <div className="text-sm font-medium">Payment emails from</div>
+          <div className="mt-0.5 text-xs text-muted-foreground">
+            Only read payment alerts from this bank/sender (e.g. your bank&apos;s domain). Comma-separate for more.
+          </div>
+          <input
+            type="text"
+            value={paymentFrom}
+            onChange={(e) => setPaymentFrom(e.target.value)}
+            onBlur={(e) => {
+              const v = e.target.value.trim() || "axis.bank.in";
+              setPaymentFrom(v);
+              put("payment_from", v);
+              toast.success("Payment sender updated");
+            }}
+            placeholder="axis.bank.in"
+            className="mt-2 h-9 w-full max-w-sm rounded-md border border-border-strong bg-surface px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          />
         </div>
 
         <div className="border-t border-border" />
