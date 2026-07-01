@@ -28,42 +28,41 @@ interface Live {
   payments: number;
   matched: number;
   awaiting: number;
-  approved: number;
-}
-
-interface RunResult {
-  scanned: number;
-  imported: number;
-  synced: number;
-  matched: number;
-  rateLimited: boolean;
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+const STEPS = [
+  { key: "gmail", title: "Gmail", desc: "Trigger", icon: Mail },
+  { key: "payments", title: "Read payments", desc: "Fetch + AI", icon: Inbox },
+  { key: "bills", title: "Read bills", desc: "PDF + AI + rules", icon: Sparkles },
+  { key: "match", title: "Auto-match", desc: "Bill ↔ payment", icon: GitCompareArrows },
+  { key: "review", title: "Review & approve", desc: "You", icon: ClipboardCheck, manual: true },
+  { key: "notify", title: "Notify vendor", desc: "Send email", icon: Send },
+] as const;
+
 export default function WorkflowPage() {
   const [live, setLive] = useState<Live | null>(null);
   const [active, setActive] = useState<number | null>(null);
-  const [done, setDone] = useState(false);
+  const [results, setResults] = useState<Record<string, string>>({});
   const [running, setRunning] = useState(false);
-  const [result, setResult] = useState<RunResult | null>(null);
+  const [lastRun, setLastRun] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
-      const [statsR, accR] = await Promise.all([
+      const [stats, acc] = await Promise.all([
         fetch("/api/stats").then((r) => r.json()),
         fetch("/api/gmail/accounts").then((r) => r.json()),
       ]);
       setLive({
-        accounts: Array.isArray(accR) ? accR.length : 0,
-        bills: statsR?.invoices?.n ?? 0,
-        payments: statsR?.payments?.n ?? 0,
-        matched: (statsR?.payments?.matched ?? 0) + (statsR?.payments?.approved ?? 0),
-        awaiting: statsR?.payments?.matched ?? 0,
-        approved: statsR?.payments?.approved ?? 0,
+        accounts: Array.isArray(acc) ? acc.length : 0,
+        bills: stats?.invoices?.n ?? 0,
+        payments: stats?.payments?.n ?? 0,
+        matched: (stats?.payments?.matched ?? 0) + (stats?.payments?.approved ?? 0),
+        awaiting: stats?.payments?.matched ?? 0,
       });
     } catch {
-      setLive({ accounts: 0, bills: 0, payments: 0, matched: 0, awaiting: 0, approved: 0 });
+      setLive({ accounts: 0, bills: 0, payments: 0, matched: 0, awaiting: 0 });
     }
   }, []);
 
@@ -71,59 +70,99 @@ export default function WorkflowPage() {
     load();
   }, [load]);
 
-  const steps = [
-    { key: "trigger", title: "Gmail", desc: "Trigger", icon: Mail, sub: live ? `${live.accounts} account${live.accounts === 1 ? "" : "s"} connected` : "—" },
-    { key: "fetch", title: "Fetch emails", desc: "Read inbox", icon: Inbox, sub: "Bills & payment emails" },
-    { key: "extract", title: "AI extract", desc: "Read the data", icon: Sparkles, sub: live ? `${live.bills} bills · ${live.payments} payments` : "—" },
-    { key: "match", title: "Auto-match", desc: "Bill ↔ payment", icon: GitCompareArrows, sub: live ? `${live.matched} matched` : "—" },
-    { key: "review", title: "Review & approve", desc: "You", icon: ClipboardCheck, manual: true, sub: live ? `${live.awaiting} awaiting` : "—" },
-    { key: "notify", title: "Notify vendor", desc: "Send email", icon: Send, sub: "On approval" },
-  ];
-
-  function statusOf(i: number): NodeStatus {
-    if (active === null) return done ? "done" : "idle";
-    if (i < active) return "done";
+  function statusOf(i: number, key: string): NodeStatus {
     if (i === active) return "running";
+    if (results[key] != null) return "done";
     return "idle";
+  }
+
+  // Live subtitle when idle; real run-result once a step has run.
+  function sub(key: string): string {
+    if (results[key] != null) return results[key];
+    if (!live) return "—";
+    switch (key) {
+      case "gmail":
+        return `${live.accounts} account${live.accounts === 1 ? "" : "s"} connected`;
+      case "payments":
+        return `${live.payments} payment${live.payments === 1 ? "" : "s"} on file`;
+      case "bills":
+        return `${live.bills} bill${live.bills === 1 ? "" : "s"} on file`;
+      case "match":
+        return `${live.matched} matched`;
+      case "review":
+        return `${live.awaiting} awaiting`;
+      case "notify":
+        return "On approval";
+      default:
+        return "";
+    }
   }
 
   async function run() {
     if (running) return;
     setRunning(true);
-    setDone(false);
-    setResult(null);
+    setResults({});
 
-    // Kick off the real work while we animate the pipeline.
-    const work = fetch("/api/gmail/sync-all", { method: "POST" })
-      .then((r) => r.json())
-      .catch(() => null);
+    try {
+      // 1 — Gmail (real: how many accounts are connected)
+      setActive(0);
+      const acc = await fetch("/api/gmail/accounts").then((r) => r.json());
+      const nAcc = Array.isArray(acc) ? acc.length : 0;
+      setResults((r) => ({ ...r, gmail: `${nAcc} account${nAcc === 1 ? "" : "s"}` }));
+      if (nAcc === 0) {
+        toast.error("No Gmail connected — connect one first.");
+        setActive(null);
+        setRunning(false);
+        return;
+      }
+      await sleep(250);
 
-    // Animate through the automated steps (skip the manual "review" node).
-    for (let i = 0; i < steps.length; i++) {
-      setActive(i);
-      await sleep(650);
-    }
-    setActive(null);
+      // 2 — Read payments (real API)
+      setActive(1);
+      const p = await fetch("/api/gmail/sync", { method: "POST" }).then((r) => r.json());
+      setResults((r) => ({
+        ...r,
+        payments: p.rateLimited ? `${p.synced ?? 0} new · AI busy` : `${p.synced ?? 0} new · ${p.scanned ?? 0} read`,
+      }));
 
-    const j = await work;
-    if (j && !j.error) {
-      const res: RunResult = {
-        scanned: (j.payments?.scanned ?? 0) + (j.bills?.scanned ?? 0),
-        imported: j.bills?.imported ?? 0,
-        synced: j.payments?.synced ?? 0,
-        matched: j.matched ?? 0,
-        rateLimited: !!j.rateLimited,
-      };
-      setResult(res);
-      setDone(true);
+      // 3 — Read bills (real API — includes the rules engine)
+      setActive(2);
+      const b = await fetch("/api/gmail/import-bills", { method: "POST" }).then((r) => r.json());
+      setResults((r) => ({
+        ...r,
+        bills: b.rateLimited ? `${b.imported ?? 0} in · AI busy` : `${b.imported ?? 0} imported · ${b.scanned ?? 0} read`,
+      }));
+
+      // 4 — Auto-match (real API)
+      setActive(3);
+      const m = await fetch("/api/match", { method: "POST" }).then((r) => r.json());
+      setResults((r) => ({ ...r, match: `${m.matched ?? 0} matched` }));
+
+      // 5 — Review (real count awaiting)
+      setActive(4);
+      const stats = await fetch("/api/stats").then((r) => r.json());
+      const awaiting = stats?.payments?.matched ?? 0;
+      setResults((r) => ({ ...r, review: `${awaiting} awaiting you` }));
+
+      // 6 — Notify (happens on approval)
+      setActive(5);
+      setResults((r) => ({ ...r, notify: "Sent on approval" }));
+      await sleep(300);
+
+      setActive(null);
+      setLastRun(
+        `${p.synced ?? 0} payment(s) · ${b.imported ?? 0} bill(s) · ${m.matched ?? 0} matched` +
+          (p.rateLimited || b.rateLimited ? " · paused (AI busy)" : "")
+      );
       const parts = [];
-      if (res.synced) parts.push(`${res.synced} payment${res.synced === 1 ? "" : "s"}`);
-      if (res.imported) parts.push(`${res.imported} bill${res.imported === 1 ? "" : "s"}`);
+      if (p.synced) parts.push(`${p.synced} payment${p.synced === 1 ? "" : "s"}`);
+      if (b.imported) parts.push(`${b.imported} bill${b.imported === 1 ? "" : "s"}`);
       toast.success(parts.length ? `Workflow ran — ${parts.join(" · ")}` : "Workflow ran — nothing new");
       window.dispatchEvent(new Event("payrecord:synced"));
       load();
-    } else {
-      toast.error(j?.error || "Workflow failed");
+    } catch {
+      toast.error("Workflow failed");
+      setActive(null);
     }
     setRunning(false);
   }
@@ -132,7 +171,7 @@ export default function WorkflowPage() {
     <div className="space-y-6">
       <PageHeader
         title="Workflow"
-        description="This is how PayRecord turns your inbox into approved, recorded payments — automatically."
+        description="Run it and watch each step happen for real — every node lights up as its actual work completes."
         actions={
           <Button onClick={run} disabled={running}>
             {running ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
@@ -145,34 +184,26 @@ export default function WorkflowPage() {
       <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-md border border-border bg-surface px-5 py-3 text-sm shadow-card">
         <span className="flex items-center gap-2">
           <span className={cn("size-2 rounded-full", running ? "animate-pulse bg-warning" : "bg-success")} />
-          {running ? "Running" : "Idle — runs automatically every 5 min"}
+          {running ? "Running now" : "Idle — auto-runs every 5 min (toggle in Settings)"}
         </span>
-        {result && (
-          <span className="text-muted-foreground">
-            Last run: {result.scanned} scanned · {result.synced + result.imported} new · {result.matched} matched
-            {result.rateLimited && " · paused (AI busy)"}
-          </span>
-        )}
+        {lastRun && <span className="text-muted-foreground">Last run: {lastRun}</span>}
       </div>
 
       {/* Flow */}
       <div className="rounded-md border border-border bg-surface p-5 shadow-card sm:p-8">
         <div className="flex flex-col items-stretch gap-0 lg:flex-row lg:items-start lg:justify-between">
-          {steps.map((step, i) => {
-            const st = statusOf(i);
-            return (
-              <div key={step.key} className="flex flex-col items-center lg:flex-1 lg:flex-row">
-                <WorkflowNode step={step} status={st} />
-                {i < steps.length - 1 && <Connector active={active !== null && i < active} />}
-              </div>
-            );
-          })}
+          {STEPS.map((step, i) => (
+            <div key={step.key} className="flex flex-col items-center lg:flex-1 lg:flex-row">
+              <WorkflowNode step={step} status={statusOf(i, step.key)} sub={sub(step.key)} />
+              {i < STEPS.length - 1 && <Connector active={active !== null && i < active} />}
+            </div>
+          ))}
         </div>
 
         <p className="mt-6 border-t border-border pt-4 text-xs text-muted-foreground">
           <Hand className="mr-1 inline size-3.5 align-[-2px] text-warning" />
-          Only the <span className="font-medium text-foreground">Review &amp; approve</span> step needs you. Everything
-          else runs on its own.
+          Only <span className="font-medium text-foreground">Review &amp; approve</span> needs you. Bills also pass the{" "}
+          <span className="font-medium text-foreground">rules</span> check before they&apos;re saved.
         </p>
       </div>
     </div>
@@ -182,9 +213,11 @@ export default function WorkflowPage() {
 function WorkflowNode({
   step,
   status,
+  sub,
 }: {
-  step: { title: string; desc: string; sub: string; icon: React.ComponentType<{ className?: string }>; manual?: boolean };
+  step: { title: string; desc: string; icon: React.ComponentType<{ className?: string }>; manual?: boolean };
   status: NodeStatus;
+  sub: string;
 }) {
   const Icon = step.icon;
   const ring =
@@ -206,7 +239,6 @@ function WorkflowNode({
 
   return (
     <div className={cn("relative w-full max-w-[200px] rounded-md border bg-surface p-4 text-center shadow-sm transition-colors lg:max-w-none", ring)}>
-      {/* status corner */}
       <div className="absolute right-2 top-2">
         {status === "running" ? (
           <Loader2 className="size-4 animate-spin text-primary" />
@@ -222,7 +254,7 @@ function WorkflowNode({
       </div>
       <div className="mt-2.5 text-sm font-semibold">{step.title}</div>
       <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{step.desc}</div>
-      <div className="mt-1 text-xs text-muted-foreground">{step.sub}</div>
+      <div className={cn("mt-1 text-xs", status === "done" ? "font-medium text-foreground" : "text-muted-foreground")}>{sub}</div>
     </div>
   );
 }
@@ -230,11 +262,9 @@ function WorkflowNode({
 function Connector({ active }: { active: boolean }) {
   return (
     <>
-      {/* vertical on mobile */}
       <div className="flex h-6 items-center justify-center lg:hidden">
         <ArrowDown className={cn("size-4", active ? "text-primary" : "text-border-strong")} />
       </div>
-      {/* horizontal on desktop */}
       <div className="hidden items-center lg:flex lg:flex-1">
         <div className={cn("h-px flex-1", active ? "bg-primary" : "bg-border-strong")} />
         <ArrowRight className={cn("size-4 shrink-0", active ? "text-primary" : "text-border-strong")} />

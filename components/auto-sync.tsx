@@ -13,6 +13,13 @@ export function AutoSync({ intervalMs = 5 * 60 * 1000 }: { intervalMs?: number }
   useEffect(() => {
     async function tick() {
       if (busy.current) return;
+      // Respect the auto-sync toggle in Settings.
+      try {
+        const s = await fetch("/api/settings").then((r) => r.json());
+        if (s?.auto_sync_enabled === "false") return;
+      } catch {
+        /* if settings can't be read, fall through and sync */
+      }
       busy.current = true;
       try {
         const r = await fetch("/api/gmail/sync-all", { method: "POST" });
