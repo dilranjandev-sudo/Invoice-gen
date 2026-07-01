@@ -18,6 +18,9 @@ import {
   TrendingDown,
   Scale,
   ScrollText,
+  Repeat,
+  FolderClosed,
+  ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -31,7 +34,7 @@ export const sections = [
     ],
   },
   {
-    label: "Accounts payable",
+    label: "Payables",
     items: [
       { href: "/review", label: "To Review", icon: ClipboardCheck, review: true },
       { href: "/invoices", label: "Bills", icon: FileText },
@@ -41,15 +44,20 @@ export const sections = [
   },
   {
     label: "Sales",
-    items: [
-      { href: "/quotations", label: "Quotations", icon: ScrollText },
-    ],
+    items: [{ href: "/quotations", label: "Quotations", icon: ScrollText }],
   },
   {
-    label: "Tax & Compliance",
+    label: "Tax",
     items: [
       { href: "/gst", label: "GST", icon: Percent },
       { href: "/tds", label: "TDS", icon: Scale },
+    ],
+  },
+  {
+    label: "Company",
+    items: [
+      { href: "/subscriptions", label: "Subscriptions", icon: Repeat },
+      { href: "/documents", label: "Documents", icon: FolderClosed },
     ],
   },
   {
@@ -65,8 +73,32 @@ export const sections = [
 export function Sidebar() {
   const pathname = usePathname();
   const [reviewCount, setReviewCount] = useState(0);
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const isActive = (href: string) =>
     pathname === href || pathname.startsWith(href + "/");
+
+  useEffect(() => {
+    try {
+      const s = localStorage.getItem("pr_nav_collapsed");
+      if (s) setCollapsed(new Set(JSON.parse(s)));
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  function toggleSection(label: string) {
+    setCollapsed((prev) => {
+      const n = new Set(prev);
+      if (n.has(label)) n.delete(label);
+      else n.add(label);
+      try {
+        localStorage.setItem("pr_nav_collapsed", JSON.stringify([...n]));
+      } catch {
+        /* ignore */
+      }
+      return n;
+    });
+  }
 
   useEffect(() => {
     function load() {
@@ -92,12 +124,21 @@ export function Sidebar() {
         </div>
       </div>
 
-      <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-5">
-        {sections.map((section) => (
+      <nav className="flex-1 space-y-2 overflow-y-auto px-3 py-4">
+        {sections.map((section) => {
+          const isCollapsed = collapsed.has(section.label);
+          const hasBadge = section.items.some((it) => "review" in it && it.review) && reviewCount > 0;
+          return (
           <div key={section.label}>
-            <div className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/70">
-              {section.label}
-            </div>
+            <button
+              onClick={() => toggleSection(section.label)}
+              className="flex w-full items-center gap-1.5 px-3 pb-1.5 pt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/60 transition-colors hover:text-muted-foreground"
+            >
+              <ChevronDown className={cn("size-3 shrink-0 transition-transform", isCollapsed && "-rotate-90")} />
+              <span className="flex-1 text-left">{section.label}</span>
+              {isCollapsed && hasBadge && <span className="size-1.5 rounded-full bg-primary" />}
+            </button>
+            {!isCollapsed && (
             <div className="space-y-0.5">
               {section.items.map((item) => {
                 const Icon = item.icon;
@@ -128,8 +169,10 @@ export function Sidebar() {
                 );
               })}
             </div>
+            )}
           </div>
-        ))}
+          );
+        })}
       </nav>
     </aside>
   );
