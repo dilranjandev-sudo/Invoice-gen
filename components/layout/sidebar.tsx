@@ -17,6 +17,7 @@ import {
   Percent,
   TrendingDown,
   Scale,
+  ScrollText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -36,6 +37,12 @@ export const sections = [
       { href: "/invoices", label: "Bills", icon: FileText },
       { href: "/payments", label: "Payments", icon: CreditCard },
       { href: "/vendors", label: "Vendors", icon: Users },
+    ],
+  },
+  {
+    label: "Sales",
+    items: [
+      { href: "/quotations", label: "Quotations", icon: ScrollText },
     ],
   },
   {
