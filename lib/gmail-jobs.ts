@@ -16,10 +16,24 @@ function str(v: unknown): string | null {
   return s === "" ? null : s;
 }
 
+/* ---- How far back to fetch (configurable in Settings) ---------------------- */
+
+async function getFetchDays() {
+  try {
+    const rows = await sql`select key, value from app_settings where key in ('payment_days','bill_days')`;
+    const m: Record<string, string> = {};
+    for (const r of rows) m[r.key as string] = r.value as string;
+    const clamp = (v: number, def: number) => (Number.isFinite(v) && v >= 1 ? Math.min(v, 365) : def);
+    return { paymentDays: clamp(Number(m.payment_days), 1), billDays: clamp(Number(m.bill_days), 60) };
+  } catch {
+    return { paymentDays: 1, billDays: 60 };
+  }
+}
+
 /* ---- Payments -------------------------------------------------------------- */
 
-const PAYMENT_QUERY =
-  'newer_than:1d (debited OR credited OR "payment" OR paid OR UPI OR NEFT OR IMPS OR RTGS OR transaction OR transferred)';
+const PAYMENT_FILTER =
+  '(debited OR credited OR "payment" OR paid OR UPI OR NEFT OR IMPS OR RTGS OR transaction OR transferred)';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function decodeBody(payload: any): string {
@@ -45,6 +59,8 @@ export async function runPaymentSync(accounts: Account[]) {
   let synced = 0;
   let scanned = 0;
   let rateLimited = false;
+  const { paymentDays } = await getFetchDays();
+  const query = `newer_than:${paymentDays}d ${PAYMENT_FILTER}`;
 
   outer: for (const acc of accounts) {
     if (!acc.refresh_token) continue;
@@ -52,7 +68,7 @@ export async function runPaymentSync(accounts: Account[]) {
     client.setCredentials({ refresh_token: acc.refresh_token });
     const gmail = google.gmail({ version: "v1", auth: client });
 
-    const list = await gmail.users.messages.list({ userId: "me", q: PAYMENT_QUERY, maxResults: 6 });
+    const list = await gmail.users.messages.list({ userId: "me", q: query, maxResults: 6 });
 
     for (const m of list.data.messages ?? []) {
       if (!m.id) continue;
@@ -113,7 +129,7 @@ export async function runPaymentSync(accounts: Account[]) {
 
 /* ---- Bills ----------------------------------------------------------------- */
 
-const BILL_QUERY = 'has:attachment filename:pdf newer_than:60d (invoice OR "tax invoice" OR bill OR gst)';
+const BILL_FILTER = 'has:attachment filename:pdf (invoice OR "tax invoice" OR bill OR gst)';
 const MAX_BILL_EXTRACT = 5;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -133,6 +149,8 @@ export async function runBillImport(accounts: Account[]) {
   let scanned = 0;
   let rateLimited = false;
   const rules = await getRules();
+  const { billDays } = await getFetchDays();
+  const query = `newer_than:${billDays}d ${BILL_FILTER}`;
 
   outer: for (const acc of accounts) {
     if (!acc.refresh_token) continue;
@@ -140,7 +158,7 @@ export async function runBillImport(accounts: Account[]) {
     client.setCredentials({ refresh_token: acc.refresh_token });
     const gmail = google.gmail({ version: "v1", auth: client });
 
-    const list = await gmail.users.messages.list({ userId: "me", q: BILL_QUERY, maxResults: 10 });
+    const list = await gmail.users.messages.list({ userId: "me", q: query, maxResults: 10 });
 
     for (const msg of list.data.messages ?? []) {
       if (!msg.id) continue;
