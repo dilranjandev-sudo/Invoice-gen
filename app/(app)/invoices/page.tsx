@@ -54,6 +54,7 @@ export default function InvoicesPage() {
   const [mode, setMode] = useState<"upload" | "manual">("upload");
   const [extractedData, setExtractedData] = useState<ExtractedInvoice | null>(null);
   const [fileName, setFileName] = useState("");
+  const [pdfFile, setPdfFile] = useState<{ base64: string; mime: string; name: string } | null>(null);
   const [form, setForm] = useState<Record<string, string>>(EMPTY_FORM);
   const [saveVendor, setSaveVendor] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -78,9 +79,10 @@ export default function InvoicesPage() {
     !vendorNames.some((n) => n.toLowerCase() === vendorName.toLowerCase());
   const ready = vendorName.length > 0;
 
-  function fillFromExtract(d: ExtractedInvoice, name: string) {
+  function fillFromExtract(d: ExtractedInvoice, name: string, file?: { base64: string; mime: string }) {
     setExtractedData(d);
     setFileName(name);
+    setPdfFile(file ? { ...file, name } : null);
     setForm({
       vendor: d.vendor ?? "",
       vendorGstin: d.vendorGstin ?? "",
@@ -102,6 +104,7 @@ export default function InvoicesPage() {
     setMode("upload");
     setExtractedData(null);
     setFileName("");
+    setPdfFile(null);
     setForm(EMPTY_FORM);
     setSaveVendor(true);
     setOpen(true);
@@ -230,6 +233,9 @@ export default function InvoicesPage() {
           bankAccount: extractedData?.bankAccount ?? null,
           bankIfsc: extractedData?.bankIfsc ?? null,
           raw: extractedData ?? null,
+          pdfData: pdfFile?.base64 ?? null,
+          pdfName: pdfFile?.name ?? null,
+          pdfMime: pdfFile?.mime ?? null,
         }),
       });
       const j = await res.json();

@@ -9,6 +9,7 @@ import {
   Wallet,
   CheckCircle2,
   CircleDashed,
+  Mail,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -36,6 +37,8 @@ interface Payment {
   source_email: string | null;
   matched_invoice_no: string | null;
   match_score: string | number | null;
+  subject: string | null;
+  body: string | null;
 }
 
 const tabs = [
@@ -64,6 +67,7 @@ export default function PaymentsPage() {
   const [edit, setEdit] = useState<Payment | null>(null);
   const [form, setForm] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [viewP, setViewP] = useState<Payment | null>(null);
 
   async function load() {
     try {
@@ -291,7 +295,18 @@ export default function PaymentsPage() {
                     <StatusBadge status={p.status === "unmatched" ? "no_match" : p.status} />
                   </td>
                   <td className="px-5 py-3.5">
-                    <RowMenu onEdit={() => openEdit(p)} onDelete={() => del(p.id)} label={`payment from ${p.payee || "vendor"}`} />
+                    <div className="flex items-center justify-end gap-1">
+                      {(p.body || p.subject) && (
+                        <button
+                          onClick={() => setViewP(p)}
+                          title="View email"
+                          className="grid size-8 place-items-center rounded-md border border-border text-muted-foreground hover:bg-primary-soft hover:text-primary"
+                        >
+                          <Mail className="size-4" />
+                        </button>
+                      )}
+                      <RowMenu onEdit={() => openEdit(p)} onDelete={() => del(p.id)} label={`payment from ${p.payee || "vendor"}`} />
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -322,6 +337,45 @@ export default function PaymentsPage() {
             </Select>
           </Field>
         </div>
+      </Drawer>
+
+      {/* Email viewer */}
+      <Drawer open={viewP !== null} onClose={() => setViewP(null)} title="Payment email" width="max-w-xl">
+        {viewP && (
+          <div className="space-y-4">
+            <div className="rounded-md border border-border bg-surface-muted/40 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="font-semibold">{viewP.payee || "—"}</div>
+                <div className="text-lg font-bold tabular-nums">
+                  {viewP.amount != null ? formatMoney(Number(viewP.amount), viewP.currency || "INR") : "—"}
+                </div>
+              </div>
+              <div className="mt-1 flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+                {viewP.paid_on && <span>{formatDate(viewP.paid_on)}</span>}
+                {viewP.mode && <span>· {viewP.mode}</span>}
+                {(viewP.utr || viewP.reference) && <span>· Ref {viewP.utr || viewP.reference}</span>}
+              </div>
+              {viewP.source_email && (
+                <div className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground">
+                  <GmailGlyph /> {viewP.source_email}
+                </div>
+              )}
+            </div>
+
+            {viewP.subject && (
+              <div>
+                <div className="text-xs font-medium text-muted-foreground">Subject</div>
+                <div className="mt-0.5 text-sm font-medium">{viewP.subject}</div>
+              </div>
+            )}
+            <div>
+              <div className="mb-1 text-xs font-medium text-muted-foreground">Email content</div>
+              <div className="max-h-[55vh] overflow-y-auto whitespace-pre-wrap rounded-md border border-border bg-surface p-4 text-sm leading-relaxed text-foreground">
+                {viewP.body || "No content saved for this email."}
+              </div>
+            </div>
+          </div>
+        )}
       </Drawer>
     </div>
   );

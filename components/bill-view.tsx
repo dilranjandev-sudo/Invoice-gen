@@ -1,6 +1,6 @@
 "use client";
 
-import { PencilLine, Trash2 } from "lucide-react";
+import { PencilLine, Trash2, FileText } from "lucide-react";
 import { PayPill } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatMoney, formatDate, cn } from "@/lib/utils";
@@ -53,7 +53,19 @@ export function BillView({
             {row.invoice_date && <> · {formatDate(row.invoice_date)}</>}
           </p>
         </div>
-        <PayPill status={row.status || "unpaid"} />
+        <div className="flex flex-col items-end gap-2">
+          <PayPill status={row.status || "unpaid"} />
+          {row.has_pdf && (
+            <a
+              href={`/api/bill-file?id=${row.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-md border border-border-strong bg-surface px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary-soft"
+            >
+              <FileText className="size-3.5" /> View PDF
+            </a>
+          )}
+        </div>
       </div>
 
       {/* Amount summary */}

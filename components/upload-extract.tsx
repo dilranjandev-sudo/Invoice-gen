@@ -48,11 +48,24 @@ export function ModeTabs({
 export function UploadExtract({
   onExtracted,
 }: {
-  onExtracted: (data: ExtractedInvoice, fileName: string) => void;
+  onExtracted: (
+    data: ExtractedInvoice,
+    fileName: string,
+    file?: { base64: string; mime: string }
+  ) => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  async function toBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(String(r.result).split(",")[1] ?? "");
+      r.onerror = reject;
+      r.readAsDataURL(file);
+    });
+  }
 
   async function handleFile(file: File) {
     setFileName(file.name);
@@ -63,7 +76,8 @@ export function UploadExtract({
       const res = await fetch("/api/extract", { method: "POST", body: fd });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Extraction failed");
-      onExtracted(json as ExtractedInvoice, file.name);
+      const base64 = await toBase64(file);
+      onExtracted(json as ExtractedInvoice, file.name, { base64, mime: file.type || "application/pdf" });
       toast.success("Invoice extracted");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Extraction failed");

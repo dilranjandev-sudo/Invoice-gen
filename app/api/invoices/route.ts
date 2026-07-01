@@ -49,7 +49,8 @@ export async function PUT(req: Request) {
 export async function GET() {
   try {
     const rows = await sql`
-      select * from invoices order by created_at desc limit 200
+      select i.*, exists(select 1 from bill_files f where f.invoice_id = i.id) as has_pdf
+      from invoices i order by i.created_at desc limit 200
     `;
     return NextResponse.json(rows);
   } catch (err) {
@@ -110,6 +111,12 @@ export async function POST(req: Request) {
       )
       returning *
     `;
+
+    // Store the uploaded PDF (if any) so it can be viewed later.
+    if (b.pdfData) {
+      await sql`insert into bill_files (invoice_id, filename, mime, data) values (${inv.id}, ${str(b.pdfName) ?? "bill.pdf"}, ${str(b.pdfMime) ?? "application/pdf"}, ${String(b.pdfData)})`;
+    }
+
     return NextResponse.json(inv);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to save invoice.";

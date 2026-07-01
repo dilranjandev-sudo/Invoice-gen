@@ -94,10 +94,10 @@ export async function runPaymentSync(accounts: Account[]) {
       await sql`
         insert into payments (
           gmail_account_id, gmail_message_id, payee, amount, currency, paid_on,
-          reference, utr, mode, channel, account_detail, status, subject, snippet, raw
+          reference, utr, mode, channel, account_detail, status, subject, snippet, body, raw
         ) values (
           ${acc.id}, ${m.id}, ${p.payee}, ${p.amount}, ${p.currency ?? "INR"}, ${p.date},
-          ${p.reference}, ${p.utr}, ${p.mode}, ${p.channel}, ${p.accountDetail}, 'unmatched', ${subject}, ${snippet}, ${sql.json(JSON.parse(JSON.stringify(p)))}
+          ${p.reference}, ${p.utr}, ${p.mode}, ${p.channel}, ${p.accountDetail}, 'unmatched', ${subject}, ${snippet}, ${(body || snippet || "").slice(0, 8000)}, ${sql.json(JSON.parse(JSON.stringify(p)))}
         )
         on conflict (gmail_message_id) do nothing
       `;
@@ -190,7 +190,7 @@ export async function runBillImport(accounts: Account[]) {
         vendorId = v.id;
       }
 
-      await sql`
+      const [inv] = await sql`
         insert into invoices (
           vendor_id, vendor_name, vendor_gstin, buyer, buyer_gstin,
           invoice_number, invoice_date, due_date, place_of_supply, currency,
@@ -203,7 +203,10 @@ export async function runBillImport(accounts: Account[]) {
           ${d.items ? sql.json(JSON.parse(JSON.stringify(d.items))) : null}, ${str(d.bankName)}, ${str(d.bankAccount)}, ${str(d.bankIfsc)},
           ${sql.json(JSON.parse(JSON.stringify(d)))}, 'gmail', ${dedupeKey}
         )
+        returning id
       `;
+      // Keep the source PDF so the user can view it later.
+      await sql`insert into bill_files (invoice_id, filename, mime, data) values (${inv.id}, ${pdf.filename}, 'application/pdf', ${base64})`;
       imported++;
       if (imported >= MAX_BILL_EXTRACT) break outer;
     }

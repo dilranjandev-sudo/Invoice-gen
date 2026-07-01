@@ -22,7 +22,7 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-const sections = [
+export const sections = [
   {
     label: "Overview",
     items: [

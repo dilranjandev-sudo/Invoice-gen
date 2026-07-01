@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search, Bell, FileText, Users, CreditCard, Loader2 } from "lucide-react";
+import { MobileMenu } from "./mobile-menu";
 import { formatMoney } from "@/lib/utils";
 
 interface Result {
@@ -62,7 +63,8 @@ export function Topbar() {
   }
 
   return (
-    <header className="sticky top-0 z-20 flex h-16 items-center gap-4 border-b border-border bg-surface/80 px-5 backdrop-blur lg:px-8">
+    <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-border bg-surface/80 px-4 backdrop-blur sm:gap-4 sm:px-5 lg:px-8">
+      <MobileMenu />
       <div ref={boxRef} className="relative w-full max-w-md">
         <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
         <input
