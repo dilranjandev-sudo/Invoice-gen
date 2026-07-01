@@ -15,7 +15,8 @@ import { toast } from "sonner";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Drawer } from "@/components/ui/drawer";
-import { Input, Field } from "@/components/ui/input";
+import { Input, Field, Select } from "@/components/ui/input";
+import { TDS_SECTIONS } from "@/lib/tds";
 import { RowMenu } from "@/components/ui/row-menu";
 import { PageHeader } from "@/components/layout/page-header";
 import { VendorLedger, type Ledger } from "@/components/vendor-ledger";
@@ -28,6 +29,7 @@ interface Vendor {
   email: string | null;
   phone: string | null;
   address: string | null;
+  tds_section: string | null;
   invoice_count: number;
   total_billed: string | number;
 }
@@ -81,6 +83,7 @@ export default function VendorsPage() {
       email: v.email ?? "",
       phone: v.phone ?? "",
       address: v.address ?? "",
+      tds_section: v.tds_section ?? "none",
     });
   }
   async function saveEdit() {
@@ -273,6 +276,13 @@ export default function VendorsPage() {
           <Field label="Email"><Input value={form.email ?? ""} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} /></Field>
           <Field label="Phone"><Input value={form.phone ?? ""} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} /></Field>
           <Field label="Address"><Input value={form.address ?? ""} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} /></Field>
+          <Field label="TDS section" hint="Used to auto-compute TDS on this vendor's bills">
+            <Select value={form.tds_section ?? "none"} onChange={(e) => setForm((f) => ({ ...f, tds_section: e.target.value }))}>
+              {TDS_SECTIONS.map((t) => (
+                <option key={t.code} value={t.code}>{t.label}{t.rate ? ` (${t.rate}%)` : ""}</option>
+              ))}
+            </Select>
+          </Field>
         </div>
       </Drawer>
 

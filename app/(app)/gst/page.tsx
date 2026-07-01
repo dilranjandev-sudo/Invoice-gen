@@ -12,6 +12,7 @@ interface GstData {
   monthly: { label: string; gst: string }[];
   byVendor: { vendor: string; gst: string; taxable: string; bills: number }[];
   byRate: { rate: string; gst: string; taxable: string; bills: number }[];
+  gstr3b: { month: string; taxable: string; cgst: string; sgst: string; igst: string; total_gst: string; bills: number }[];
   split: { intra: number; inter: number };
 }
 
@@ -37,6 +38,10 @@ export default function GstPage() {
     rows.push("");
     rows.push("Rate,Bills,Taxable Value,GST");
     for (const r of d.byRate) rows.push([r.rate, r.bills, n(r.taxable), n(r.gst)].join(","));
+    rows.push("");
+    rows.push("GSTR-3B Monthly (Eligible ITC)");
+    rows.push("Month,Bills,Taxable,CGST,SGST,IGST,Total ITC");
+    for (const m of d.gstr3b) rows.push([`"${m.month}"`, m.bills, n(m.taxable), n(m.cgst), n(m.sgst), n(m.igst), n(m.total_gst)].join(","));
 
     const blob = new Blob([rows.join("\n")], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -134,6 +139,47 @@ export default function GstPage() {
           </Table>
         </Card>
       </div>
+
+      {/* GSTR-3B monthly */}
+      <Card className="overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4">
+          <div>
+            <h3 className="text-sm font-semibold">GSTR-3B — Eligible ITC (monthly)</h3>
+            <p className="text-xs text-muted-foreground">Table 4(A) input tax credit, month-wise. Hand this to your CA.</p>
+          </div>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[640px] text-sm">
+            <thead>
+              <tr className="border-t border-border bg-surface-muted/60 text-left text-xs font-semibold text-muted-foreground">
+                <th className="px-5 py-2.5">Month</th>
+                <th className="px-5 py-2.5 text-right">Bills</th>
+                <th className="px-5 py-2.5 text-right">Taxable</th>
+                <th className="px-5 py-2.5 text-right">CGST</th>
+                <th className="px-5 py-2.5 text-right">SGST</th>
+                <th className="px-5 py-2.5 text-right">IGST</th>
+                <th className="px-5 py-2.5 text-right">Total ITC</th>
+              </tr>
+            </thead>
+            <tbody>
+              {d.gstr3b.filter((m) => n(m.total_gst) > 0 || m.bills > 0).map((m, i) => (
+                <tr key={i} className="border-t border-border hover:bg-surface-muted/30">
+                  <td className="px-5 py-2.5 font-medium">{m.month}</td>
+                  <td className="px-5 py-2.5 text-right text-muted-foreground">{m.bills}</td>
+                  <td className="px-5 py-2.5 text-right text-muted-foreground">{formatMoney(n(m.taxable))}</td>
+                  <td className="px-5 py-2.5 text-right">{formatMoney(n(m.cgst))}</td>
+                  <td className="px-5 py-2.5 text-right">{formatMoney(n(m.sgst))}</td>
+                  <td className="px-5 py-2.5 text-right">{formatMoney(n(m.igst))}</td>
+                  <td className="px-5 py-2.5 text-right font-semibold">{formatMoney(n(m.total_gst))}</td>
+                </tr>
+              ))}
+              {d.gstr3b.every((m) => n(m.total_gst) === 0 && m.bills === 0) && (
+                <tr><td colSpan={7} className="px-5 py-8 text-center text-sm text-muted-foreground">No GST data yet — it fills as bills come in.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
     </div>
   );
 }

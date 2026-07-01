@@ -15,6 +15,8 @@ import {
   Workflow,
   ShieldCheck,
   Percent,
+  TrendingDown,
+  Scale,
   User,
   Building2,
   KeyRound,
@@ -29,6 +31,7 @@ export const sections = [
     label: "Overview",
     items: [
       { href: "/dashboard", label: "Home", icon: Home },
+      { href: "/cashflow", label: "Cash Flow", icon: TrendingDown },
       { href: "/workflow", label: "Workflow", icon: Workflow },
     ],
   },
@@ -39,7 +42,13 @@ export const sections = [
       { href: "/invoices", label: "Bills", icon: FileText },
       { href: "/payments", label: "Payments", icon: CreditCard },
       { href: "/vendors", label: "Vendors", icon: Users },
+    ],
+  },
+  {
+    label: "Tax & Compliance",
+    items: [
       { href: "/gst", label: "GST", icon: Percent },
+      { href: "/tds", label: "TDS", icon: Scale },
     ],
   },
   {

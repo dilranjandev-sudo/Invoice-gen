@@ -27,7 +27,7 @@ export async function PUT(req: Request) {
     await sql`
       update vendors set
         name = ${s(b.name) ?? ""}, gstin = ${s(b.gstin)}, email = ${s(b.email)},
-        phone = ${s(b.phone)}, address = ${s(b.address)}
+        phone = ${s(b.phone)}, address = ${s(b.address)}, tds_section = ${s(b.tds_section)}
       where id = ${b.id}
     `;
     return NextResponse.json({ ok: true });
@@ -40,7 +40,7 @@ export async function GET() {
   try {
     const rows = await sql`
       select
-        v.id, v.name, v.gstin, v.email, v.phone, v.address, v.created_at,
+        v.id, v.name, v.gstin, v.email, v.phone, v.address, v.tds_section, v.created_at,
         count(i.id)::int as invoice_count,
         coalesce(sum(i.total), 0) as total_billed
       from vendors v
