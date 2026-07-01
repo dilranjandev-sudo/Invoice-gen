@@ -20,7 +20,6 @@ import {
   ScrollText,
   Repeat,
   FolderClosed,
-  ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -73,33 +72,7 @@ export const sections = [
 export function Sidebar() {
   const pathname = usePathname();
   const [reviewCount, setReviewCount] = useState(0);
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
-  const isActive = (href: string) =>
-    pathname === href || pathname.startsWith(href + "/");
-
-  useEffect(() => {
-    try {
-      const s = localStorage.getItem("pr_nav_collapsed");
-      // First visit: keep daily-use groups open, tuck the rest away for a clean view.
-      setCollapsed(s ? new Set(JSON.parse(s)) : new Set(["Tax", "Company", "Setup"]));
-    } catch {
-      /* ignore */
-    }
-  }, []);
-
-  function toggleSection(label: string) {
-    setCollapsed((prev) => {
-      const n = new Set(prev);
-      if (n.has(label)) n.delete(label);
-      else n.add(label);
-      try {
-        localStorage.setItem("pr_nav_collapsed", JSON.stringify([...n]));
-      } catch {
-        /* ignore */
-      }
-      return n;
-    });
-  }
+  const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
 
   useEffect(() => {
     function load() {
@@ -115,7 +88,8 @@ export function Sidebar() {
 
   return (
     <aside className="hidden md:flex w-60 shrink-0 flex-col border-r border-border bg-surface">
-      <div className="flex items-center gap-2.5 px-5 h-16 border-b border-border">
+      {/* Brand */}
+      <div className="flex h-16 items-center gap-2.5 px-5">
         <div className="grid size-9 place-items-center rounded-lg bg-primary text-primary-foreground shadow-sm">
           <Wallet className="size-5" />
         </div>
@@ -125,44 +99,37 @@ export function Sidebar() {
         </div>
       </div>
 
-      <nav className="flex-1 space-y-2 overflow-y-auto px-3 py-4">
-        {sections.map((section) => {
-          const isCollapsed = collapsed.has(section.label);
-          const hasBadge = section.items.some((it) => "review" in it && it.review) && reviewCount > 0;
-          return (
+      <nav className="flex-1 space-y-6 overflow-y-auto px-3 pb-6 pt-2">
+        {sections.map((section) => (
           <div key={section.label}>
-            <button
-              onClick={() => toggleSection(section.label)}
-              className="flex w-full items-center gap-1.5 px-3 pb-1.5 pt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/60 transition-colors hover:text-muted-foreground"
-            >
-              <ChevronDown className={cn("size-3 shrink-0 transition-transform", isCollapsed && "-rotate-90")} />
-              <span className="flex-1 text-left">{section.label}</span>
-              {isCollapsed && hasBadge && <span className="size-1.5 rounded-full bg-primary" />}
-            </button>
-            {!isCollapsed && (
+            <div className="mb-1.5 px-3 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/50">
+              {section.label}
+            </div>
             <div className="space-y-0.5">
               {section.items.map((item) => {
                 const Icon = item.icon;
                 const active = isActive(item.href);
-                const showBadge = item.review && reviewCount > 0;
+                const showBadge = "review" in item && item.review && reviewCount > 0;
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
                     className={cn(
-                      "group relative flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                      "group flex items-center gap-3 rounded-lg px-3 py-2 text-[13.5px] font-medium transition-all",
                       active
-                        ? "bg-primary-soft text-primary"
+                        ? "bg-primary text-primary-foreground shadow-sm"
                         : "text-muted-foreground hover:bg-surface-muted hover:text-foreground"
                     )}
                   >
-                    {active && (
-                      <span className="absolute inset-y-1.5 left-0 w-0.5 rounded-full bg-primary" />
-                    )}
-                    <Icon className={cn("size-[18px] shrink-0", active ? "text-primary" : "text-muted-foreground group-hover:text-foreground")} />
+                    <Icon className={cn("size-[18px] shrink-0", active ? "text-primary-foreground" : "text-muted-foreground/80 group-hover:text-foreground")} />
                     <span className="flex-1">{item.label}</span>
                     {showBadge && (
-                      <span className="grid h-5 min-w-5 place-items-center rounded-full bg-primary px-1.5 text-[11px] font-semibold text-primary-foreground">
+                      <span
+                        className={cn(
+                          "grid h-5 min-w-5 place-items-center rounded-full px-1.5 text-[11px] font-semibold",
+                          active ? "bg-white/25 text-primary-foreground" : "bg-primary text-primary-foreground"
+                        )}
+                      >
                         {reviewCount}
                       </span>
                     )}
@@ -170,12 +137,9 @@ export function Sidebar() {
                 );
               })}
             </div>
-            )}
           </div>
-          );
-        })}
+        ))}
       </nav>
     </aside>
   );
 }
-
