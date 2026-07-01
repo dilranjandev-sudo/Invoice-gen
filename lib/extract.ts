@@ -4,6 +4,27 @@ import Groq from "groq-sdk";
 // @ts-expect-error - pdf-parse lib path has no type declarations
 import pdfParse from "pdf-parse/lib/pdf-parse.js";
 import type { ExtractedInvoice } from "@/lib/invoice-types";
+import { validateGstin } from "@/lib/gst";
+
+const GSTIN_PATTERN = /[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]/g;
+
+/** Find the vendor's GSTIN in raw invoice text (checksum-validated). */
+function findGstin(text: string): string | null {
+  // Prefer one right after a GST/GSTIN/GST No label (usually the seller's).
+  const labeled = text.match(/GST(?:IN)?\s*(?:No\.?|number)?\s*[:\-]?\s*([0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z])/i);
+  if (labeled && validateGstin(labeled[1])) return labeled[1].toUpperCase();
+  const all = (text.match(GSTIN_PATTERN) || []).map((g) => g.toUpperCase()).filter(validateGstin);
+  return all[0] ?? null;
+}
+
+/** Backfill fields the LLM commonly misses, straight from the source text. */
+function backfillFromText(d: ExtractedInvoice, text: string): ExtractedInvoice {
+  if (!d.vendorGstin || !validateGstin(d.vendorGstin)) {
+    const g = findGstin(text);
+    if (g) d.vendorGstin = g;
+  }
+  return d;
+}
 
 const PROMPT = `You are an invoice/bill data extractor for an accounts-payable system.
 Extract EVERY important field below and return ONLY a valid JSON object — no markdown, no commentary.
@@ -159,7 +180,7 @@ async function extractWithGroq(
           response_format: { type: "json_object" },
           messages,
         });
-        return parseJson(completion.choices[0]?.message?.content ?? "");
+        return backfillFromText(parseJson<ExtractedInvoice>(completion.choices[0]?.message?.content ?? ""), text);
       } catch (e) {
         if (model === "llama-3.1-8b-instant" || !/429|rate.?limit|quota|RESOURCE_EXHAUSTED/i.test(String(e))) throw e;
         // else: 70B is rate-limited → retry loop falls through to 8B
