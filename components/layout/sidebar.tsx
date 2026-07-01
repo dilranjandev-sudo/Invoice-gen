@@ -14,6 +14,7 @@ import {
   Wallet,
   Workflow,
   ShieldCheck,
+  Percent,
   User,
   Building2,
   KeyRound,
@@ -38,6 +39,7 @@ export const sections = [
       { href: "/invoices", label: "Bills", icon: FileText },
       { href: "/payments", label: "Payments", icon: CreditCard },
       { href: "/vendors", label: "Vendors", icon: Users },
+      { href: "/gst", label: "GST", icon: Percent },
     ],
   },
   {

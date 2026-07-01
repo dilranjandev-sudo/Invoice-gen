@@ -4,6 +4,7 @@ import { PencilLine, Trash2, FileText, Check, AlertTriangle, ShieldCheck } from 
 import { PayPill } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatMoney, formatDate, cn } from "@/lib/utils";
+import { validateGstin, gstinState } from "@/lib/gst";
 
 interface Item {
   name?: string | null;
@@ -90,7 +91,25 @@ export function BillView({
       <Section title="Details">
         <div className="grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2">
           <Field k="Category" v={row.category} />
-          <Field k="GSTIN" v={row.vendor_gstin} mono />
+          {row.vendor_gstin && (
+            <div className="flex items-baseline justify-between gap-4">
+              <dt className="shrink-0 text-sm text-muted-foreground">GSTIN</dt>
+              <dd className="min-w-0 text-right">
+                <span className="font-mono text-xs font-medium text-foreground">{row.vendor_gstin}</span>
+                <span
+                  className={cn(
+                    "ml-2 rounded-sm px-1.5 py-0.5 text-[10px] font-semibold",
+                    validateGstin(row.vendor_gstin) ? "bg-success-soft text-success" : "bg-danger-soft text-danger"
+                  )}
+                >
+                  {validateGstin(row.vendor_gstin) ? "Valid" : "Invalid"}
+                </span>
+                {gstinState(row.vendor_gstin) && (
+                  <span className="mt-0.5 block text-[11px] text-muted-foreground">{gstinState(row.vendor_gstin)}</span>
+                )}
+              </dd>
+            </div>
+          )}
           <Field k="Invoice date" v={row.invoice_date ? formatDate(row.invoice_date) : null} />
           <Field k="Due date" v={row.due_date ? formatDate(row.due_date) : null} />
           <Field k="Place of supply" v={row.place_of_supply} />
