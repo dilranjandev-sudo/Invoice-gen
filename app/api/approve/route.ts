@@ -39,6 +39,10 @@ export async function POST(req: Request) {
         ? (await sql`select email, refresh_token from gmail_accounts where id = ${p.gmail_account_id} and status = 'connected'`)[0]
         : (await sql`select email, refresh_token from gmail_accounts where status = 'connected' order by created_at limit 1`)[0];
 
+      // Include the company logo in the email if one is set in Settings.
+      const [logo] = await sql`select 1 from app_settings where key = 'company_logo' and value is not null limit 1`;
+      const logoUrl = logo && process.env.APP_URL ? `${process.env.APP_URL}/api/logo` : null;
+
       if (d?.vendor_email && acct?.refresh_token) {
         const html = paymentEmailHtml({
           vendorName: d.vendor_name || "Vendor",
@@ -49,6 +53,7 @@ export async function POST(req: Request) {
           mode: d.mode,
           channel: d.channel,
           reference: d.utr || d.reference,
+          logoUrl,
         });
         const subject = d.invoice_number
           ? `Payment confirmation - Invoice ${d.invoice_number}`

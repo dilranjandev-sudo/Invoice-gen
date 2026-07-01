@@ -5,9 +5,11 @@ export const runtime = "nodejs";
 
 export async function GET() {
   try {
-    const rows = await sql`select key, value from app_settings`;
+    // Exclude the logo blob (served via /api/logo) to keep this response small.
+    const rows = await sql`select key, value from app_settings where key <> 'company_logo'`;
     const map: Record<string, string> = {};
     for (const r of rows) map[r.key as string] = r.value as string;
+    map.has_logo = "unknown"; // LogoSetting checks /api/logo directly
     return NextResponse.json(map);
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : "Failed" }, { status: 500 });

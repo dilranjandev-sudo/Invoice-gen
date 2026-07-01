@@ -13,6 +13,7 @@ export interface PaymentEmailData {
   mode: string | null;
   channel: string | null;
   reference: string | null;
+  logoUrl?: string | null;
 }
 
 function money(n: number, currency: string) {
@@ -41,7 +42,11 @@ export function paymentEmailHtml(d: PaymentEmailData): string {
         <!-- Header -->
         <tr><td style="padding:24px 32px 18px;border-bottom:1px solid #eef1f5;">
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
-            <td style="font-size:17px;font-weight:700;color:#0f172a;letter-spacing:-0.2px;">${COMPANY}</td>
+            <td style="font-size:17px;font-weight:700;color:#0f172a;letter-spacing:-0.2px;">${
+              d.logoUrl
+                ? `<img src="${d.logoUrl}" alt="${COMPANY}" height="34" style="display:block;max-height:40px;border:0;outline:none;text-decoration:none;">`
+                : COMPANY
+            }</td>
             <td align="right" style="font-size:11px;font-weight:700;letter-spacing:0.8px;color:#94a3b8;text-transform:uppercase;">Payment Receipt</td>
           </tr></table>
         </td></tr>
