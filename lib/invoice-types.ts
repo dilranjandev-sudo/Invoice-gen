@@ -1,3 +1,19 @@
+/** Fixed spend categories — kept in sync with the extractor prompt. */
+export const CATEGORIES = [
+  "Rent",
+  "Utilities",
+  "Software",
+  "Marketing",
+  "Travel",
+  "Office Supplies",
+  "Professional Fees",
+  "Inventory",
+  "Logistics",
+  "Telecom",
+  "Other",
+] as const;
+export type Category = (typeof CATEGORIES)[number];
+
 /** Shape returned by the AI invoice extractor. Safe to import on the client. */
 export interface InvoiceItem {
   name: string | null;
@@ -34,6 +50,8 @@ export interface ExtractedInvoice {
   amountPaid: number | null;
   balance: number | null;
   status: "paid" | "partial" | "unpaid" | null;
+  // Spend category (one of CATEGORIES)
+  category: string | null;
   // Overall extraction confidence (0–100)
   confidence: number | null;
   // Line items

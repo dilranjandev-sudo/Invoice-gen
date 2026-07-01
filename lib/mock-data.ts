@@ -24,16 +24,16 @@ export interface Company {
 }
 
 export const company: Company = {
-  name: "Acme Corp. Pvt. Ltd.",
-  shortName: "Acme",
+  name: "Biqadx Private Limited",
+  shortName: "Biqadx",
   gst: "27AAACA1234A1Z5",
-  email: "accounts@acmecorp.com",
+  email: "accounts@biqadx.com",
 };
 
 export const currentUser = {
   name: "Admin User",
   role: "Administrator",
-  email: "admin@acmecorp.com",
+  email: "admin@biqadx.com",
   initials: "A",
 };
 
@@ -123,7 +123,7 @@ export const payments: Payment[] = [
     reference: "AXIS2026062912345678",
     utr: "AXIS2026062912345678",
     mode: "Bank Transfer",
-    paidBy: "accounts@acmecorp.com",
+    paidBy: "accounts@biqadx.com",
     source: { channel: "Axis Bank", detail: "•••• 2773" },
     status: "pending",
     linkedBillId: "b1",
@@ -137,7 +137,7 @@ export const payments: Payment[] = [
     reference: "GPAY28061900042",
     utr: "GPAY28061900042",
     mode: "UPI",
-    paidBy: "finance@acmecorp.com",
+    paidBy: "finance@biqadx.com",
     source: { channel: "UPI", detail: "Google Pay" },
     status: "pending",
     linkedBillId: "b2",
@@ -151,7 +151,7 @@ export const payments: Payment[] = [
     reference: "HDFC2026062799810",
     utr: "HDFC2026062799810",
     mode: "Bank Transfer",
-    paidBy: "payments@acmecorp.com",
+    paidBy: "payments@biqadx.com",
     source: { channel: "HDFC Bank", detail: "•••• 9981" },
     status: "pending",
     linkedBillId: "b3",
@@ -165,7 +165,7 @@ export const payments: Payment[] = [
     reference: "PHPE25061900777",
     utr: "PHPE25061900777",
     mode: "UPI",
-    paidBy: "finance@acmecorp.com",
+    paidBy: "finance@biqadx.com",
     source: { channel: "UPI", detail: "PhonePe" },
     status: "pending",
     linkedBillId: "b5",
@@ -179,7 +179,7 @@ export const payments: Payment[] = [
     reference: "ICICI2026062488120",
     utr: "ICICI2026062488120",
     mode: "Bank Transfer",
-    paidBy: "accounts@acmecorp.com",
+    paidBy: "accounts@biqadx.com",
     source: { channel: "ICICI Bank", detail: "•••• 8812" },
     status: "matched",
     linkedBillId: "b6",

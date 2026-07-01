@@ -12,6 +12,7 @@ import {
   Mail,
   Settings,
   Wallet,
+  Workflow,
   User,
   Building2,
   KeyRound,
@@ -21,14 +22,30 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-const nav = [
-  { href: "/dashboard", label: "Home", icon: Home },
-  { href: "/review", label: "To Review", icon: ClipboardCheck, review: true },
-  { href: "/invoices", label: "Bills", icon: FileText },
-  { href: "/payments", label: "Payments", icon: CreditCard },
-  { href: "/vendors", label: "Vendors", icon: Users },
-  { href: "/connectors", label: "Gmail", icon: Mail },
-  { href: "/settings", label: "Settings", icon: Settings },
+const sections = [
+  {
+    label: "Overview",
+    items: [
+      { href: "/dashboard", label: "Home", icon: Home },
+      { href: "/workflow", label: "Workflow", icon: Workflow },
+    ],
+  },
+  {
+    label: "Accounts payable",
+    items: [
+      { href: "/review", label: "To Review", icon: ClipboardCheck, review: true },
+      { href: "/invoices", label: "Bills", icon: FileText },
+      { href: "/payments", label: "Payments", icon: CreditCard },
+      { href: "/vendors", label: "Vendors", icon: Users },
+    ],
+  },
+  {
+    label: "Setup",
+    items: [
+      { href: "/connectors", label: "Gmail", icon: Mail },
+      { href: "/settings", label: "Settings", icon: Settings },
+    ],
+  },
 ];
 
 export function Sidebar() {
@@ -52,41 +69,53 @@ export function Sidebar() {
   return (
     <aside className="hidden md:flex w-60 shrink-0 flex-col border-r border-border bg-surface">
       <div className="flex items-center gap-2.5 px-5 h-16 border-b border-border">
-        <div className="grid size-9 place-items-center rounded-xl bg-primary text-primary-foreground">
+        <div className="grid size-9 place-items-center rounded-lg bg-primary text-primary-foreground shadow-sm">
           <Wallet className="size-5" />
         </div>
         <div className="leading-tight">
-          <div className="text-[15px] font-semibold tracking-tight">PayRecord</div>
-          <div className="text-[11px] text-muted-foreground">Smart Payment Records</div>
+          <div className="text-[15px] font-semibold tracking-tight text-foreground">PayRecord</div>
+          <div className="text-[11px] text-muted-foreground">Accounts Payable</div>
         </div>
       </div>
 
-      <nav className="flex-1 px-3 py-3 space-y-1">
-        {nav.map((item) => {
-          const Icon = item.icon;
-          const active = isActive(item.href);
-          const showBadge = item.review && reviewCount > 0;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                active
-                  ? "bg-primary-soft text-primary"
-                  : "text-muted-foreground hover:bg-surface-muted hover:text-foreground"
-              )}
-            >
-              <Icon className={cn("size-5 shrink-0", active && "text-primary")} />
-              <span className="flex-1">{item.label}</span>
-              {showBadge && (
-                <span className="grid h-5 min-w-5 place-items-center rounded-full bg-primary px-1.5 text-[11px] font-semibold text-primary-foreground">
-                  {reviewCount}
-                </span>
-              )}
-            </Link>
-          );
-        })}
+      <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-5">
+        {sections.map((section) => (
+          <div key={section.label}>
+            <div className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/70">
+              {section.label}
+            </div>
+            <div className="space-y-0.5">
+              {section.items.map((item) => {
+                const Icon = item.icon;
+                const active = isActive(item.href);
+                const showBadge = item.review && reviewCount > 0;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={cn(
+                      "group relative flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                      active
+                        ? "bg-primary-soft text-primary"
+                        : "text-muted-foreground hover:bg-surface-muted hover:text-foreground"
+                    )}
+                  >
+                    {active && (
+                      <span className="absolute inset-y-1.5 left-0 w-0.5 rounded-full bg-primary" />
+                    )}
+                    <Icon className={cn("size-[18px] shrink-0", active ? "text-primary" : "text-muted-foreground group-hover:text-foreground")} />
+                    <span className="flex-1">{item.label}</span>
+                    {showBadge && (
+                      <span className="grid h-5 min-w-5 place-items-center rounded-full bg-primary px-1.5 text-[11px] font-semibold text-primary-foreground">
+                        {reviewCount}
+                      </span>
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
 
       <ProfileMenu />
@@ -116,10 +145,10 @@ function ProfileMenu() {
   return (
     <div ref={ref} className="relative border-t border-border p-3">
       {open && (
-        <div className="absolute bottom-[calc(100%-0.25rem)] left-3 right-3 overflow-hidden rounded-xl border border-border bg-surface shadow-lg">
+        <div className="absolute bottom-[calc(100%-0.25rem)] left-3 right-3 overflow-hidden rounded-lg border border-border bg-surface shadow-lg">
           <div className="border-b border-border px-3 py-2.5">
             <div className="text-sm font-medium">Admin User</div>
-            <div className="text-xs text-muted-foreground">admin@acmecorp.com</div>
+            <div className="text-xs text-muted-foreground">admin@biqadx.com</div>
           </div>
           <div className="p-1">
             {items.map((it) => {
@@ -151,15 +180,15 @@ function ProfileMenu() {
       <button
         onClick={() => setOpen((v) => !v)}
         className={cn(
-          "flex w-full items-center gap-2.5 rounded-lg px-1.5 py-1.5 text-left transition-colors",
+          "flex w-full items-center gap-2.5 rounded-md px-1.5 py-1.5 text-left transition-colors",
           open ? "bg-surface-muted" : "hover:bg-surface-muted"
         )}
       >
-        <div className="grid size-9 place-items-center rounded-full bg-slate-200 text-sm font-semibold text-slate-700">
+        <div className="grid size-9 place-items-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
           A
         </div>
         <div className="min-w-0 flex-1 leading-tight">
-          <div className="truncate text-sm font-medium">Admin User</div>
+          <div className="truncate text-sm font-medium text-foreground">Admin User</div>
           <div className="truncate text-xs text-muted-foreground">Administrator</div>
         </div>
         <ChevronUp className={cn("size-4 text-muted-foreground transition-transform", open && "rotate-180")} />

@@ -39,7 +39,7 @@ export default function SettingsPage() {
               <Input defaultValue="One BKC, Bandra Kurla Complex, Mumbai 400051" />
             </Field>
             <Field label="Website">
-              <Input defaultValue="www.acmecorp.com" />
+              <Input defaultValue="www.biqadx.com" />
             </Field>
             <Field label="Logo" hint="PNG or SVG, transparent background">
               <Input type="file" className="file:mr-3 file:rounded file:border-0 file:bg-surface-muted file:px-2 file:py-1 file:text-xs" />

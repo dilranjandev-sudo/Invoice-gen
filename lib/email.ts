@@ -1,7 +1,7 @@
 import "server-only";
 import { oauthClient, google } from "@/lib/google";
 
-const COMPANY = process.env.COMPANY_NAME || "Acme Corp.";
+const COMPANY = process.env.COMPANY_NAME || "Biqadx Private Limited";
 const ACCENT = "#2563eb";
 
 export interface PaymentEmailData {

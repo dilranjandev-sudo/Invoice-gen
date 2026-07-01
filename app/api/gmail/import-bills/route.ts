@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { sql } from "@/lib/db";
-import { runPaymentSync } from "@/lib/gmail-jobs";
-import { runMatching } from "@/lib/run-match";
+import { runBillImport } from "@/lib/gmail-jobs";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -12,10 +11,9 @@ export async function POST() {
     if (accounts.length === 0) {
       return NextResponse.json({ error: "No Gmail account connected." }, { status: 400 });
     }
-    const { synced, scanned, rateLimited } = await runPaymentSync(accounts);
-    const matched = await runMatching();
-    return NextResponse.json({ synced, scanned, matched, rateLimited });
+    const { imported, scanned, rateLimited } = await runBillImport(accounts);
+    return NextResponse.json({ imported, scanned, rateLimited });
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : "Sync failed." }, { status: 500 });
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Import failed." }, { status: 500 });
   }
 }

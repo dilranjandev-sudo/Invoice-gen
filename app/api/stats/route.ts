@@ -70,6 +70,15 @@ export async function GET() {
       group by v.id order by billed desc limit 5
     `;
 
+    // Spend grouped by category
+    const byCategory = await sql`
+      select coalesce(nullif(category, ''), 'Uncategorized') as category,
+             coalesce(sum(total), 0) as total,
+             count(*)::int as count
+      from invoices
+      group by 1 order by total desc
+    `;
+
     return NextResponse.json({
       invoices: inv,
       payments: pay,
@@ -88,6 +97,7 @@ export async function GET() {
       recentInvoices,
       recentPayments,
       topVendors,
+      byCategory,
     });
   } catch (err) {
     return NextResponse.json(

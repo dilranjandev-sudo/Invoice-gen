@@ -22,7 +22,7 @@ import { Input, Select } from "@/components/ui/input";
 import { RowMenu } from "@/components/ui/row-menu";
 import { UploadExtract, ModeTabs } from "@/components/upload-extract";
 import { BillView } from "@/components/bill-view";
-import type { ExtractedInvoice } from "@/lib/invoice-types";
+import { CATEGORIES, type ExtractedInvoice } from "@/lib/invoice-types";
 import { formatMoney, formatDate, cn } from "@/lib/utils";
 
 interface Row {
@@ -34,6 +34,7 @@ interface Row {
   amount: number;
   paid: number;
   items: number;
+  category: string;
   status: "paid" | "partial" | "unpaid";
 }
 
@@ -45,6 +46,7 @@ const usd = (n: number) => formatMoney(n, "INR");
 const EMPTY_FORM: Record<string, string> = {
   vendor: "", vendorGstin: "", invoiceNumber: "", invoiceDate: "", dueDate: "",
   placeOfSupply: "", currency: "INR", subtotal: "", gst: "", total: "", status: "unpaid",
+  category: "",
 };
 
 export default function InvoicesPage() {
@@ -65,6 +67,7 @@ export default function InvoicesPage() {
   const [q, setQ] = useState("");
   const [viewId, setViewId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [catFilter, setCatFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<SortKey>("recent");
 
   const upd = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
@@ -90,6 +93,7 @@ export default function InvoicesPage() {
       gst: d.gst != null ? String(d.gst) : "",
       total: d.total != null ? String(d.total) : "",
       status: d.status ?? "unpaid",
+      category: d.category ?? "",
     });
   }
 
@@ -122,6 +126,7 @@ export default function InvoicesPage() {
       gst: r.gst != null ? String(r.gst) : "",
       total: r.total != null ? String(r.total) : "",
       status: r.status ?? "unpaid",
+      category: r.category ?? "",
     });
     setOpen(true);
   }
@@ -161,6 +166,7 @@ export default function InvoicesPage() {
               amount: Number(r.total) || 0,
               paid: Number(r.amount_paid) || 0,
               items: Array.isArray(r.items) ? r.items.length : 0,
+              category: r.category || "",
               status: (r.status as Row["status"]) || "unpaid",
             }))
           : []
@@ -183,7 +189,7 @@ export default function InvoicesPage() {
     loadVendorNames();
   }, []);
 
-  async function createInvoice() {
+  async function createInvoice(force = false) {
     setSaving(true);
     try {
       if (editId) {
@@ -207,6 +213,7 @@ export default function InvoicesPage() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           ...form,
+          force,
           saveVendor: isNewVendor && saveVendor,
           vendorAddress: extractedData?.vendorAddress ?? null,
           vendorPhone: extractedData?.vendorPhone ?? null,
@@ -230,6 +237,14 @@ export default function InvoicesPage() {
         toast.error(j.error || "Save failed");
         return;
       }
+      if (j.duplicate) {
+        toast.warning(j.message || "This bill may already exist.", {
+          description: "Save it anyway?",
+          action: { label: "Save anyway", onClick: () => createInvoice(true) },
+          cancel: { label: "Cancel", onClick: () => {} },
+        });
+        return;
+      }
       if (isNewVendor && saveVendor) toast.success(`Vendor “${vendorName}” saved`);
       toast.success("Invoice saved");
       setOpen(false);
@@ -244,6 +259,7 @@ export default function InvoicesPage() {
   const baseRows = serverRows ?? [];
   const data = baseRows
     .filter((r) => statusFilter === "all" || r.status === statusFilter)
+    .filter((r) => catFilter === "all" || r.category === catFilter)
     .filter((r) => q === "" || (r.client + r.project + r.id).toLowerCase().includes(q.toLowerCase()))
     .sort((a, b) =>
       sortBy === "amount-desc" ? b.amount - a.amount : sortBy === "amount-asc" ? a.amount - b.amount : 0
@@ -332,6 +348,16 @@ export default function InvoicesPage() {
           />
         </div>
         <select
+          value={catFilter}
+          onChange={(e) => setCatFilter(e.target.value)}
+          className="h-9 rounded-md border border-border-strong bg-surface px-3 pr-8 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <option value="all">All categories</option>
+          {CATEGORIES.map((c) => (
+            <option key={c} value={c}>{c}</option>
+          ))}
+        </select>
+        <select
           value={sortBy}
           onChange={(e) => setSortBy(e.target.value as SortKey)}
           className="h-9 rounded-md border border-border-strong bg-surface px-3 pr-8 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -361,7 +387,7 @@ export default function InvoicesPage() {
                 <th className="w-8 px-1 py-3.5"></th>
                 <th className="px-4 py-3.5">Invoice ID</th>
                 <th className="px-4 py-3.5">Vendor</th>
-                <th className="px-4 py-3.5">GSTIN</th>
+                <th className="px-4 py-3.5">Category</th>
                 <th className="px-4 py-3.5">Date</th>
                 <th className="px-4 py-3.5">Items</th>
                 <th className="px-4 py-3.5 text-right">Amount</th>
@@ -410,8 +436,8 @@ export default function InvoicesPage() {
                       <span className="font-medium">{r.client}</span>
                     </div>
                   </td>
-                  <td className="px-4 py-3.5 font-mono text-xs text-muted-foreground">
-                    {r.project}
+                  <td className="px-4 py-3.5">
+                    <CategoryBadge category={r.category} />
                   </td>
                   <td className="px-4 py-3.5 text-muted-foreground">{r.due ? formatDate(r.due) : "—"}</td>
                   <td className="px-4 py-3.5">
@@ -450,7 +476,7 @@ export default function InvoicesPage() {
             <Button variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button disabled={!ready || saving} onClick={createInvoice}>
+            <Button disabled={!ready || saving} onClick={() => createInvoice()}>
               {saving ? "Saving…" : editId ? "Save changes" : extracted ? "Approve & Save" : "Create New"}
             </Button>
           </>
@@ -523,6 +549,15 @@ export default function InvoicesPage() {
                   </Select>
                 </Req>
               </div>
+              <label className="flex flex-col gap-1.5">
+                <span className="text-sm font-medium text-foreground">Category</span>
+                <Select value={form.category} onChange={(e) => upd("category", e.target.value)}>
+                  <option value="">— Select category —</option>
+                  {CATEGORIES.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </Select>
+              </label>
             </div>
           )}
         </div>
@@ -552,6 +587,30 @@ export default function InvoicesPage() {
         )}
       </Drawer>
     </div>
+  );
+}
+
+const CAT_DOT: Record<string, string> = {
+  Rent: "#2563eb",
+  Utilities: "#0891b2",
+  Software: "#7c3aed",
+  Marketing: "#db2777",
+  Travel: "#d97706",
+  "Office Supplies": "#64748b",
+  "Professional Fees": "#059669",
+  Inventory: "#ea580c",
+  Logistics: "#0d9488",
+  Telecom: "#4f46e5",
+  Other: "#94a3b8",
+};
+
+function CategoryBadge({ category }: { category: string }) {
+  if (!category) return <span className="text-xs text-muted-foreground">—</span>;
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-muted px-2.5 py-0.5 text-xs font-medium text-foreground">
+      <span className="size-1.5 rounded-full" style={{ background: CAT_DOT[category] ?? "#94a3b8" }} />
+      {category}
+    </span>
   );
 }
 
@@ -648,6 +707,7 @@ function ExtractedReview({
         <KV k="Date" v={data.invoiceDate} />
         <KV k="Due Date" v={data.dueDate} />
         <KV k="Place of Supply" v={data.placeOfSupply} />
+        <KV k="Category" v={data.category} />
       </ReviewSection>
 
       <ReviewSection title="Amounts">

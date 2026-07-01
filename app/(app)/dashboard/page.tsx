@@ -14,7 +14,9 @@ import {
   ArrowRight,
   Loader2,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { PayPill } from "@/components/ui/badge";
 import { PageHeader } from "@/components/layout/page-header";
 import { formatMoney, cn } from "@/lib/utils";
@@ -32,7 +34,15 @@ interface Stats {
   };
   recentInvoices: { invoice_number: string; vendor_name: string; total: string; status: string }[];
   recentPayments: { payee: string; amount: string; channel: string; status: string }[];
+  byCategory: { category: string; total: string; count: number }[];
 }
+
+const CAT_COLOR: Record<string, string> = {
+  Rent: "#2563eb", Utilities: "#0891b2", Software: "#7c3aed", Marketing: "#db2777",
+  Travel: "#d97706", "Office Supplies": "#64748b", "Professional Fees": "#059669",
+  Inventory: "#ea580c", Logistics: "#0d9488", Telecom: "#4f46e5", Other: "#94a3b8",
+  Uncategorized: "#cbd5e1",
+};
 
 function pct(now: number, prev: number): { txt: string; up: boolean } {
   if (prev <= 0) return { txt: now > 0 ? "New" : "—", up: true };
@@ -42,6 +52,7 @@ function pct(now: number, prev: number): { txt: string; up: boolean } {
 
 export default function DashboardPage() {
   const [s, setS] = useState<Stats | null>(null);
+  const [syncing, setSyncing] = useState(false);
 
   async function load() {
     try {
@@ -49,6 +60,27 @@ export default function DashboardPage() {
       const j = await r.json();
       if (!j.error) setS(j);
     } catch {}
+  }
+
+  async function syncNow() {
+    setSyncing(true);
+    try {
+      const r = await fetch("/api/gmail/sync-all", { method: "POST" });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || "Sync failed");
+      const p = j.payments?.synced ?? 0;
+      const b = j.bills?.imported ?? 0;
+      const parts = [];
+      if (p > 0) parts.push(`${p} payment${p === 1 ? "" : "s"}`);
+      if (b > 0) parts.push(`${b} bill${b === 1 ? "" : "s"}`);
+      toast.success(parts.length ? `Synced — ${parts.join(" · ")}` : "You're up to date");
+      window.dispatchEvent(new Event("payrecord:synced"));
+      load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Sync failed");
+    } finally {
+      setSyncing(false);
+    }
   }
   useEffect(() => {
     load();
@@ -86,7 +118,16 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader title="Dashboard" description="Live overview of your payments and bills." />
+      <PageHeader
+        title="Dashboard"
+        description="Live overview of your payments and bills."
+        actions={
+          <Button variant="outline" onClick={syncNow} disabled={syncing}>
+            <RefreshCw className={cn("size-4", syncing && "animate-spin")} />
+            {syncing ? "Syncing…" : "Sync now"}
+          </Button>
+        }
+      />
 
       {/* Row 1: stat cards + status */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-6">
@@ -185,6 +226,35 @@ export default function DashboardPage() {
           </div>
         </Card>
       </div>
+
+      {/* Spend by category */}
+      {s.byCategory && s.byCategory.length > 0 && (
+        <Card className="p-5">
+          <h3 className="text-base font-semibold">Spend by category</h3>
+          <div className="mt-4 space-y-3">
+            {(() => {
+              const catMax = Math.max(...s.byCategory.map((x) => Number(x.total)), 1);
+              return s.byCategory.slice(0, 8).map((cbrk) => {
+                const val = Number(cbrk.total);
+                const w = (val / catMax) * 100;
+                const color = CAT_COLOR[cbrk.category] ?? "#94a3b8";
+                return (
+                  <div key={cbrk.category} className="flex items-center gap-3">
+                    <div className="flex w-40 shrink-0 items-center gap-2 text-sm">
+                      <span className="size-2.5 shrink-0 rounded-full" style={{ background: color }} />
+                      <span className="truncate">{cbrk.category}</span>
+                    </div>
+                    <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-surface-muted">
+                      <div className="h-full rounded-full" style={{ width: `${Math.max(w, 2)}%`, background: color }} />
+                    </div>
+                    <div className="w-24 shrink-0 text-right text-sm font-medium">{formatMoney(val)}</div>
+                  </div>
+                );
+              });
+            })()}
+          </div>
+        </Card>
+      )}
 
       {/* Recent */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">

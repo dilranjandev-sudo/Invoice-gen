@@ -1,68 +1,88 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Receipt, Lock, Mail } from "lucide-react";
+import { Wallet, Lock, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input, Field } from "@/components/ui/input";
 
+// Static demo credentials (no backend auth yet).
+const DEMO_EMAIL = "support@biqadx.com";
+const DEMO_PASSWORD = "payrecord123";
+
 export default function LoginPage() {
   const router = useRouter();
+  const [email, setEmail] = useState(DEMO_EMAIL);
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setError("");
+    if (email.trim().toLowerCase() !== DEMO_EMAIL || password !== DEMO_PASSWORD) {
+      setError("Incorrect email or password.");
+      return;
+    }
+    setBusy(true);
     toast.success("Welcome back, Admin");
     router.push("/dashboard");
   }
 
+  function fillDemo() {
+    setEmail(DEMO_EMAIL);
+    setPassword(DEMO_PASSWORD);
+    setError("");
+  }
+
   return (
-    <div className="grid min-h-screen lg:grid-cols-2">
-      {/* Brand panel */}
-      <div className="relative hidden flex-col justify-between bg-primary p-12 text-primary-foreground lg:flex">
-        <div className="flex items-center gap-2.5">
-          <div className="grid size-10 place-items-center rounded-md bg-white/15">
-            <Receipt className="size-6" />
-          </div>
-          <span className="text-lg font-semibold">PayRecord</span>
-        </div>
-        <div className="space-y-4">
-          <h2 className="text-3xl font-semibold leading-tight">
-            Every company payment,
-            <br /> matched &amp; recorded.
-          </h2>
-          <p className="max-w-md text-primary-foreground/80">
-            Connect Gmail, upload your bills, and let AI match each invoice to its
-            payment. You review and approve — nothing is finalised automatically.
-          </p>
-        </div>
-        <p className="text-sm text-primary-foreground/70">
-          © 2026 The Ledger Labs
-        </p>
+    <div className="relative flex min-h-screen items-center justify-center bg-background p-6">
+      {/* soft backdrop accents */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -left-24 -top-24 size-72 rounded-full bg-primary/5 blur-3xl" />
+        <div className="absolute -bottom-24 -right-24 size-72 rounded-full bg-primary/5 blur-3xl" />
       </div>
 
-      {/* Form panel */}
-      <div className="flex items-center justify-center bg-background p-6">
-        <div className="w-full max-w-sm">
-          <div className="mb-8 lg:hidden flex items-center gap-2.5">
-            <div className="grid size-10 place-items-center rounded-md bg-primary text-primary-foreground">
-              <Receipt className="size-6" />
+      <div className="relative w-full max-w-sm">
+        {/* Brand */}
+        <div className="mb-6 flex flex-col items-center text-center">
+          <div className="grid size-12 place-items-center rounded-xl bg-primary text-primary-foreground shadow-sm">
+            <Wallet className="size-6" />
+          </div>
+          <h1 className="mt-4 text-xl font-semibold tracking-tight">Sign in to PayRecord</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Manage your payment records and Gmail sync.
+          </p>
+        </div>
+
+        {/* Card */}
+        <div className="rounded-lg border border-border bg-surface p-6 shadow-card-lg">
+          {/* Demo credentials hint */}
+          <div className="mb-5 flex items-start justify-between gap-3 rounded-md border border-border bg-surface-muted/50 p-3 text-xs">
+            <div className="space-y-0.5">
+              <div className="font-medium text-foreground">Demo login</div>
+              <div className="text-muted-foreground">{DEMO_EMAIL}</div>
+              <div className="text-muted-foreground">Password: {DEMO_PASSWORD}</div>
             </div>
-            <span className="text-lg font-semibold">PayRecord</span>
+            <button
+              type="button"
+              onClick={fillDemo}
+              className="shrink-0 rounded-sm border border-border-strong bg-surface px-2.5 py-1 font-medium text-primary hover:bg-primary-soft"
+            >
+              Fill
+            </button>
           </div>
 
-          <h1 className="text-2xl font-semibold tracking-tight">Admin sign in</h1>
-          <p className="mt-1.5 text-sm text-muted-foreground">
-            Sign in to manage your payment records and Gmail sync.
-          </p>
-
-          <form onSubmit={handleSubmit} className="mt-8 space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <Field label="Email">
               <div className="relative">
                 <Mail className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   type="email"
                   required
-                  defaultValue="support@theledgerlabs.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="pl-9"
                   placeholder="you@company.com"
                 />
@@ -74,26 +94,31 @@ export default function LoginPage() {
                 <Input
                   type="password"
                   required
-                  defaultValue="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   className="pl-9"
                   placeholder="••••••••"
                 />
               </div>
             </Field>
 
+            {error && <p className="text-sm font-medium text-danger">{error}</p>}
+
             <div className="flex items-center justify-between text-sm">
               <label className="flex items-center gap-2 text-muted-foreground">
                 <input type="checkbox" defaultChecked className="size-4 rounded border-border-strong accent-primary" />
                 Remember me
               </label>
-              <span className="text-muted-foreground/60">Forgot password?</span>
+              <span className="cursor-pointer text-muted-foreground/60 hover:text-muted-foreground">Forgot password?</span>
             </div>
 
-            <Button type="submit" size="lg" className="w-full">
-              Sign in
+            <Button type="submit" size="lg" className="w-full" disabled={busy}>
+              {busy ? "Signing in…" : "Sign in"}
             </Button>
           </form>
         </div>
+
+        <p className="mt-6 text-center text-xs text-muted-foreground">© 2026 Biqadx Private Limited · PayRecord</p>
       </div>
     </div>
   );

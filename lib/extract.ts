@@ -17,6 +17,7 @@ Rules:
 - "total" = grand total. "amountPaid" = amount received (0 if not shown). "balance" = balance due.
 - "status": "paid" if balance is 0 and total > 0, "partial" if 0 < amountPaid < total, otherwise "unpaid".
 - "confidence": an integer 0-100 = your overall confidence that the extracted values are correct (be honest; lower it if the document is unclear or fields are missing).
+- "category": classify what this bill is for. Pick the single best fit from EXACTLY this list: "Rent", "Utilities", "Software", "Marketing", "Travel", "Office Supplies", "Professional Fees", "Inventory", "Logistics", "Telecom", "Other". Use "Other" only if none fit.
 - Capture bank details if present. If a field is not present, use null. "items" should be an array (empty if none).
 
 JSON shape:
@@ -28,6 +29,7 @@ JSON shape:
   "total": number|null, "amountPaid": number|null, "balance": number|null,
   "status": "paid"|"partial"|"unpaid"|null,
   "confidence": number,
+  "category": "Rent"|"Utilities"|"Software"|"Marketing"|"Travel"|"Office Supplies"|"Professional Fees"|"Inventory"|"Logistics"|"Telecom"|"Other",
   "items": [{ "name": string|null, "hsn": string|null, "qty": number|null, "unitPrice": number|null, "gst": number|null, "amount": number|null }],
   "bankName": string|null, "bankAccount": string|null, "bankIfsc": string|null
 }`;

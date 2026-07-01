@@ -67,13 +67,18 @@ export default function ConnectorsPage() {
   async function sync() {
     setSyncing(true);
     try {
-      const r = await fetch("/api/gmail/sync", { method: "POST" });
+      const r = await fetch("/api/gmail/sync-all", { method: "POST" });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || "Sync failed");
+      const p = j.payments?.synced ?? 0;
+      const b = j.bills?.imported ?? 0;
+      const parts = [];
+      if (p > 0) parts.push(`${p} payment${p === 1 ? "" : "s"}`);
+      if (b > 0) parts.push(`${b} bill${b === 1 ? "" : "s"}`);
       if (j.rateLimited) {
-        toast(`Synced ${j.synced} — AI is busy (free-tier limit), the rest will sync shortly.`);
+        toast(`Synced ${parts.join(" · ") || "0"} — AI is busy, the rest will sync shortly.`);
       } else {
-        toast.success(`Synced — ${j.synced} new payment${j.synced === 1 ? "" : "s"}`);
+        toast.success(parts.length ? `Synced — ${parts.join(" · ")}` : "You're up to date");
       }
       load();
     } catch (e) {
@@ -94,13 +99,15 @@ export default function ConnectorsPage() {
             const c = await fetch("/api/gmail/rescan", { method: "POST" });
             const cj = await c.json();
             if (!c.ok) throw new Error(cj.error || "Re-scan failed");
-            const r = await fetch("/api/gmail/sync", { method: "POST" });
+            const r = await fetch("/api/gmail/sync-all", { method: "POST" });
             const j = await r.json();
             if (!r.ok) throw new Error(j.error || "Sync failed");
+            const p = j.payments?.synced ?? 0;
+            const b = j.bills?.imported ?? 0;
             if (j.rateLimited) {
-              toast(`Re-scanning — ${j.synced} pulled, AI is busy, the rest will follow shortly.`);
+              toast(`Re-scanning — ${p} payments · ${b} bills pulled, AI is busy, the rest will follow.`);
             } else {
-              toast.success(`Re-scan complete — ${j.synced} payment${j.synced === 1 ? "" : "s"} pulled`);
+              toast.success(`Re-scan complete — ${p} payment${p === 1 ? "" : "s"} · ${b} bill${b === 1 ? "" : "s"}`);
             }
             load();
           } catch (e) {

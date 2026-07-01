@@ -4,8 +4,8 @@ import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 
 /**
- * Silently syncs Gmail (which also auto-matches) on an interval while the app
- * is open. In production a server cron would hit /api/gmail/sync instead.
+ * Silently runs the full Gmail sync (bills + payments + matching) on an interval
+ * while the app is open. In production a server cron would hit /api/gmail/sync-all.
  */
 export function AutoSync({ intervalMs = 5 * 60 * 1000 }: { intervalMs?: number }) {
   const busy = useRef(false);
@@ -15,11 +15,16 @@ export function AutoSync({ intervalMs = 5 * 60 * 1000 }: { intervalMs?: number }
       if (busy.current) return;
       busy.current = true;
       try {
-        const r = await fetch("/api/gmail/sync", { method: "POST" });
+        const r = await fetch("/api/gmail/sync-all", { method: "POST" });
         if (r.ok) {
           const j = await r.json();
-          if (j.synced > 0) {
-            toast.success(`Auto-sync — ${j.synced} new payment${j.synced === 1 ? "" : "s"}`);
+          const p = j.payments?.synced ?? 0;
+          const b = j.bills?.imported ?? 0;
+          if (p > 0 || b > 0) {
+            const parts = [];
+            if (p > 0) parts.push(`${p} payment${p === 1 ? "" : "s"}`);
+            if (b > 0) parts.push(`${b} bill${b === 1 ? "" : "s"}`);
+            toast.success(`Auto-sync — ${parts.join(" · ")}`);
             window.dispatchEvent(new Event("payrecord:synced"));
           }
         }

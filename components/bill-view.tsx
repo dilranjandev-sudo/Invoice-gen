@@ -77,6 +77,7 @@ export function BillView({
       {/* Details */}
       <Section title="Details">
         <div className="grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2">
+          <Field k="Category" v={row.category} />
           <Field k="GSTIN" v={row.vendor_gstin} mono />
           <Field k="Invoice date" v={row.invoice_date ? formatDate(row.invoice_date) : null} />
           <Field k="Due date" v={row.due_date ? formatDate(row.due_date) : null} />

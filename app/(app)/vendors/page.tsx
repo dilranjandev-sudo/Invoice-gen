@@ -18,6 +18,7 @@ import { Drawer } from "@/components/ui/drawer";
 import { Input, Field } from "@/components/ui/input";
 import { RowMenu } from "@/components/ui/row-menu";
 import { PageHeader } from "@/components/layout/page-header";
+import { VendorLedger, type Ledger } from "@/components/vendor-ledger";
 import { cn } from "@/lib/utils";
 
 interface Vendor {
@@ -42,6 +43,25 @@ export default function VendorsPage() {
   const [edit, setEdit] = useState<Vendor | null>(null);
   const [form, setForm] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [ledgerOpen, setLedgerOpen] = useState(false);
+  const [ledger, setLedger] = useState<Ledger | null>(null);
+
+  async function openLedger(id: string) {
+    setLedger(null);
+    setLedgerOpen(true);
+    try {
+      const r = await fetch(`/api/vendors/ledger?id=${id}`);
+      const j = await r.json();
+      if (r.ok) setLedger(j);
+      else {
+        toast.error(j.error || "Failed to load statement");
+        setLedgerOpen(false);
+      }
+    } catch {
+      toast.error("Failed to load statement");
+      setLedgerOpen(false);
+    }
+  }
 
   function load() {
     fetch("/api/vendors")
@@ -138,7 +158,7 @@ export default function VendorsPage() {
         />
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-card">
+      <div className="overflow-hidden rounded-md border border-border bg-surface shadow-card">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[940px] text-sm">
             <thead>
@@ -186,10 +206,14 @@ export default function VendorsPage() {
                       </button>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-2.5">
+                      <button
+                        onClick={() => openLedger(v.id)}
+                        className="flex items-center gap-2.5 text-left hover:underline"
+                        title="View statement"
+                      >
                         <Avatar name={v.name} className="size-9" />
                         <span className="font-medium">{v.name}</span>
-                      </div>
+                      </button>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">{v.email || "—"}</td>
                     <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{v.gstin || "—"}</td>
@@ -250,6 +274,15 @@ export default function VendorsPage() {
           <Field label="Phone"><Input value={form.phone ?? ""} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} /></Field>
           <Field label="Address"><Input value={form.address ?? ""} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} /></Field>
         </div>
+      </Drawer>
+
+      <Drawer
+        open={ledgerOpen}
+        onClose={() => setLedgerOpen(false)}
+        title="Vendor statement"
+        width="max-w-2xl"
+      >
+        <VendorLedger data={ledger} />
       </Drawer>
     </div>
   );

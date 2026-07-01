@@ -36,7 +36,8 @@ export async function PUT(req: Request) {
         invoice_number = ${str(b.invoiceNumber)}, invoice_date = ${str(b.invoiceDate)},
         due_date = ${str(b.dueDate)}, place_of_supply = ${str(b.placeOfSupply)},
         currency = ${str(b.currency) ?? "INR"}, subtotal = ${num(b.subtotal)},
-        gst = ${num(b.gst)}, total = ${num(b.total)}, status = ${str(b.status) ?? "unpaid"}
+        gst = ${num(b.gst)}, total = ${num(b.total)}, status = ${str(b.status) ?? "unpaid"},
+        category = ${str(b.category)}
       where id = ${b.id}
     `;
     return NextResponse.json({ ok: true });
@@ -61,6 +62,23 @@ export async function POST(req: Request) {
   try {
     const b = await req.json();
 
+    // Duplicate guard — same vendor + invoice number already on file.
+    const dupVendor = str(b.vendor);
+    const dupInv = str(b.invoiceNumber);
+    if (!b.force && dupVendor && dupInv) {
+      const [dup] = await sql`
+        select invoice_number, vendor_name, total from invoices
+        where lower(vendor_name) = lower(${dupVendor}) and invoice_number = ${dupInv}
+        limit 1
+      `;
+      if (dup) {
+        return NextResponse.json({
+          duplicate: true,
+          message: `A bill #${dup.invoice_number} from ${dup.vendor_name} already exists.`,
+        });
+      }
+    }
+
     // Upsert vendor when requested
     let vendorId: string | null = null;
     const vendorName = str(b.vendor);
@@ -82,12 +100,12 @@ export async function POST(req: Request) {
       insert into invoices (
         vendor_id, vendor_name, vendor_gstin, buyer, buyer_gstin,
         invoice_number, invoice_date, due_date, place_of_supply, currency,
-        subtotal, cgst, sgst, igst, gst, total, amount_paid, balance, status,
+        subtotal, cgst, sgst, igst, gst, total, amount_paid, balance, status, category,
         items, bank_name, bank_account, bank_ifsc, raw
       ) values (
         ${vendorId}, ${vendorName}, ${str(b.vendorGstin)}, ${str(b.buyer)}, ${str(b.buyerGstin)},
         ${str(b.invoiceNumber)}, ${str(b.invoiceDate)}, ${str(b.dueDate)}, ${str(b.placeOfSupply)}, ${str(b.currency) ?? "INR"},
-        ${num(b.subtotal)}, ${num(b.cgst)}, ${num(b.sgst)}, ${num(b.igst)}, ${num(b.gst)}, ${num(b.total)}, ${num(b.amountPaid)}, ${num(b.balance)}, ${str(b.status) ?? "unpaid"},
+        ${num(b.subtotal)}, ${num(b.cgst)}, ${num(b.sgst)}, ${num(b.igst)}, ${num(b.gst)}, ${num(b.total)}, ${num(b.amountPaid)}, ${num(b.balance)}, ${str(b.status) ?? "unpaid"}, ${str(b.category)},
         ${b.items ? sql.json(b.items) : null}, ${str(b.bankName)}, ${str(b.bankAccount)}, ${str(b.bankIfsc)}, ${b.raw ? sql.json(b.raw) : null}
       )
       returning *

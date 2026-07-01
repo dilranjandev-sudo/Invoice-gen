@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  /* Hostinger's managed Next.js deploy runs `next build` + `next start` for us. */
 };
 
 export default nextConfig;
