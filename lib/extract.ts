@@ -17,12 +17,88 @@ function findGstin(text: string): string | null {
   return all[0] ?? null;
 }
 
-/** Backfill fields the LLM commonly misses, straight from the source text. */
-function backfillFromText(d: ExtractedInvoice, text: string): ExtractedInvoice {
+function toNum(v: unknown): number | null {
+  if (v === null || v === undefined || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Find an invoice number in raw text when the LLM missed it. */
+function findInvoiceNo(text: string): string | null {
+  const m = text.match(/(?:invoice|bill|inv|tax invoice)\s*(?:no\.?|number|#)\s*[:\-]?\s*([A-Za-z0-9][A-Za-z0-9/\-]{2,})/i);
+  return m ? m[1].trim() : null;
+}
+
+/**
+ * Deterministic clean-up pass — backfills GSTIN & invoice number from text and
+ * reconciles amounts (subtotal + tax = total). Then computes an honest
+ * confidence from how complete & consistent the result is.
+ */
+function reconcile(d: ExtractedInvoice, text: string): ExtractedInvoice {
+  // GSTIN
   if (!d.vendorGstin || !validateGstin(d.vendorGstin)) {
     const g = findGstin(text);
     if (g) d.vendorGstin = g;
   }
+  // Invoice number
+  if (!d.invoiceNumber && text) {
+    const n = findInvoiceNo(text);
+    if (n) d.invoiceNumber = n;
+  }
+
+  // Amounts: subtotal + gst = total
+  let subtotal = toNum(d.subtotal);
+  let gst = toNum(d.gst);
+  let total = toNum(d.total);
+  const cgst = toNum(d.cgst), sgst = toNum(d.sgst), igst = toNum(d.igst);
+
+  const comp = (cgst || 0) + (sgst || 0) + (igst || 0);
+  if (gst == null && comp > 0) gst = comp;
+
+  // GST can never exceed the taxable base (max rate 28%). If it does, the model
+  // swapped subtotal & gst — swap them back.
+  if (subtotal != null && gst != null && gst > subtotal && gst > 0) {
+    [subtotal, gst] = [gst, subtotal];
+  }
+
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  if (total != null && subtotal != null) {
+    // If the parts don't add up, trust total & subtotal and fix gst.
+    if (gst == null || Math.abs(subtotal + gst - total) > 1) {
+      if (total >= subtotal) gst = r2(total - subtotal);
+    }
+  } else if (total == null && subtotal != null && gst != null) {
+    total = r2(subtotal + gst);
+  } else if (subtotal == null && total != null && gst != null && total >= gst) {
+    subtotal = r2(total - gst);
+  }
+  // If GST still isn't split out but a single standard rate is visible in the
+  // text, derive taxable & GST from the gross total (total = taxable × (1+rate)).
+  if (text && total != null && total > 0 && (gst == null || gst === 0)) {
+    const rates = [...new Set([...text.matchAll(/(\d{1,2})\s*%/g)].map((m) => parseInt(m[1], 10)).filter((r) => [5, 12, 18, 28].includes(r)))];
+    if (rates.length === 1) {
+      const sub = r2(total / (1 + rates[0] / 100));
+      subtotal = sub;
+      gst = r2(total - sub);
+    }
+  }
+
+  d.subtotal = subtotal;
+  d.gst = gst;
+  d.total = total;
+
+  // Honest confidence from completeness + amount consistency.
+  const weights: [boolean, number][] = [
+    [!!d.vendor, 25],
+    [!!d.invoiceNumber, 20],
+    [total != null && total > 0, 25],
+    [!!d.invoiceDate, 15],
+    [!!(d.vendorGstin && validateGstin(d.vendorGstin)), 15],
+  ];
+  let conf = weights.reduce((s, [ok, w]) => s + (ok ? w : 0), 0);
+  // Small penalty if amounts still don't reconcile.
+  if (subtotal != null && gst != null && total != null && Math.abs(subtotal + gst - total) > 1) conf -= 10;
+  d.confidence = Math.max(0, Math.min(100, conf));
   return d;
 }
 
@@ -180,7 +256,7 @@ async function extractWithGroq(
           response_format: { type: "json_object" },
           messages,
         });
-        return backfillFromText(parseJson<ExtractedInvoice>(completion.choices[0]?.message?.content ?? ""), text);
+        return reconcile(parseJson<ExtractedInvoice>(completion.choices[0]?.message?.content ?? ""), text);
       } catch (e) {
         if (model === "llama-3.1-8b-instant" || !/429|rate.?limit|quota|RESOURCE_EXHAUSTED/i.test(String(e))) throw e;
         // else: 70B is rate-limited → retry loop falls through to 8B
@@ -203,7 +279,7 @@ async function extractWithGroq(
       },
     ],
   });
-  return parseJson(completion.choices[0]?.message?.content ?? "");
+  return reconcile(parseJson<ExtractedInvoice>(completion.choices[0]?.message?.content ?? ""), "");
 }
 
 /* ---- Gemini (free, if available) ------------------------------------------- */
@@ -222,7 +298,7 @@ async function extractWithGemini(
     config: { responseMimeType: "application/json", temperature: 0 },
   });
   if (!response.text) throw new Error("Empty response from Gemini.");
-  return parseJson(response.text);
+  return reconcile(parseJson<ExtractedInvoice>(response.text), "");
 }
 
 /* ---- Entry point ----------------------------------------------------------- */

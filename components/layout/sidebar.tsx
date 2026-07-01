@@ -80,7 +80,8 @@ export function Sidebar() {
   useEffect(() => {
     try {
       const s = localStorage.getItem("pr_nav_collapsed");
-      if (s) setCollapsed(new Set(JSON.parse(s)));
+      // First visit: keep daily-use groups open, tuck the rest away for a clean view.
+      setCollapsed(s ? new Set(JSON.parse(s)) : new Set(["Tax", "Company", "Setup"]));
     } catch {
       /* ignore */
     }
