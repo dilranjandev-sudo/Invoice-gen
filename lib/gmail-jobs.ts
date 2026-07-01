@@ -172,22 +172,27 @@ export async function runBillImport(accounts: Account[]) {
     const gmail = google.gmail({ version: "v1", auth: client });
 
     const list = await gmail.users.messages.list({ userId: "me", q: query, maxResults: 10 });
+    const mark = (id: string) =>
+      sql`insert into scanned_emails (gmail_message_id, gmail_account_id) values (${id}, ${acc.id}) on conflict (gmail_message_id) do nothing`;
 
     for (const msg of list.data.messages ?? []) {
       if (!msg.id) continue;
+      // Skip anything we've already looked at (saved OR blocked) so we never re-AI it.
+      const seenScan = await sql`select 1 from scanned_emails where gmail_message_id = ${msg.id} limit 1`;
+      if (seenScan.length) continue;
       const full = await gmail.users.messages.get({ userId: "me", id: msg.id, format: "full" });
       const pdfs = pdfParts(full.data.payload);
-      if (pdfs.length === 0) continue;
+      if (pdfs.length === 0) { await mark(msg.id); continue; }
 
       const pdf = pdfs[0];
       const dedupeKey = `${msg.id}:${pdf.id.slice(0, 24)}`;
       const seen = await sql`select 1 from invoices where gmail_message_id = ${dedupeKey} limit 1`;
-      if (seen.length) continue;
+      if (seen.length) { await mark(msg.id); continue; }
       scanned++;
 
       const att = await gmail.users.messages.attachments.get({ userId: "me", messageId: msg.id, id: pdf.id });
       const dataUrl = att.data.data;
-      if (!dataUrl) continue;
+      if (!dataUrl) { await mark(msg.id); continue; }
       const base64 = Buffer.from(dataUrl, "base64url").toString("base64");
 
       let d;
@@ -195,7 +200,7 @@ export async function runBillImport(accounts: Account[]) {
         d = await extractInvoice(base64, "application/pdf");
       } catch (e) {
         if (isRate(e)) { rateLimited = true; break outer; }
-        continue;
+        await mark(msg.id); continue; // unreadable PDF — skip it for good
       }
 
       const invNo = str(d.invoiceNumber);
@@ -225,6 +230,7 @@ export async function runBillImport(accounts: Account[]) {
           reasonKey: verdict.rejectedBy.key,
           reason: verdict.rejectedBy.reason,
         });
+        await mark(msg.id);
         continue; // rule blocked this — don't save junk/duplicates
       }
 
@@ -258,6 +264,7 @@ export async function runBillImport(accounts: Account[]) {
       `;
       // Keep the source PDF so the user can view it later.
       await sql`insert into bill_files (invoice_id, filename, mime, data) values (${inv.id}, ${pdf.filename}, 'application/pdf', ${base64})`;
+      await mark(msg.id);
       imported++;
       if (imported >= MAX_BILL_EXTRACT) break outer;
     }
