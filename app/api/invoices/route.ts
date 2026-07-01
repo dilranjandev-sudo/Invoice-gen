@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { sql } from "@/lib/db";
+import { getRules, evaluateBill, logRejected } from "@/lib/rules";
 
 export const runtime = "nodejs";
 
@@ -63,21 +64,40 @@ export async function POST(req: Request) {
   try {
     const b = await req.json();
 
-    // Duplicate guard — same vendor + invoice number already on file.
+    // Run the dynamic rules engine (duplicate + validity checks).
     const dupVendor = str(b.vendor);
     const dupInv = str(b.invoiceNumber);
-    if (!b.force && dupVendor && dupInv) {
+    let duplicate = false;
+    if (dupVendor && dupInv) {
       const [dup] = await sql`
-        select invoice_number, vendor_name, total from invoices
+        select 1 from invoices
         where lower(vendor_name) = lower(${dupVendor}) and invoice_number = ${dupInv}
         limit 1
       `;
-      if (dup) {
-        return NextResponse.json({
-          duplicate: true,
-          message: `A bill #${dup.invoice_number} from ${dup.vendor_name} already exists.`,
-        });
-      }
+      duplicate = !!dup;
+    }
+    const rules = await getRules();
+    const verdict = evaluateBill(
+      {
+        vendor: b.vendor,
+        invoiceNumber: b.invoiceNumber,
+        total: b.total,
+        confidence: b.raw?.confidence ?? null,
+        itemsCount: Array.isArray(b.items) ? b.items.length : 0,
+      },
+      { duplicate },
+      rules
+    );
+    if (!verdict.accepted && !b.force && verdict.rejectedBy) {
+      await logRejected({
+        source: "upload",
+        vendorName: dupVendor,
+        invoiceNumber: dupInv,
+        total: num(b.total),
+        reasonKey: verdict.rejectedBy.key,
+        reason: verdict.rejectedBy.reason,
+      });
+      return NextResponse.json({ rejected: true, rule: verdict.rejectedBy });
     }
 
     // Upsert vendor when requested
@@ -102,12 +122,12 @@ export async function POST(req: Request) {
         vendor_id, vendor_name, vendor_gstin, buyer, buyer_gstin,
         invoice_number, invoice_date, due_date, place_of_supply, currency,
         subtotal, cgst, sgst, igst, gst, total, amount_paid, balance, status, category,
-        items, bank_name, bank_account, bank_ifsc, raw
+        items, bank_name, bank_account, bank_ifsc, raw, rule_notes
       ) values (
         ${vendorId}, ${vendorName}, ${str(b.vendorGstin)}, ${str(b.buyer)}, ${str(b.buyerGstin)},
         ${str(b.invoiceNumber)}, ${str(b.invoiceDate)}, ${str(b.dueDate)}, ${str(b.placeOfSupply)}, ${str(b.currency) ?? "INR"},
         ${num(b.subtotal)}, ${num(b.cgst)}, ${num(b.sgst)}, ${num(b.igst)}, ${num(b.gst)}, ${num(b.total)}, ${num(b.amountPaid)}, ${num(b.balance)}, ${str(b.status) ?? "unpaid"}, ${str(b.category)},
-        ${b.items ? sql.json(b.items) : null}, ${str(b.bankName)}, ${str(b.bankAccount)}, ${str(b.bankIfsc)}, ${b.raw ? sql.json(b.raw) : null}
+        ${b.items ? sql.json(b.items) : null}, ${str(b.bankName)}, ${str(b.bankAccount)}, ${str(b.bankIfsc)}, ${b.raw ? sql.json(b.raw) : null}, ${sql.json(JSON.parse(JSON.stringify(verdict.checks)))}
       )
       returning *
     `;

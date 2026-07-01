@@ -243,9 +243,9 @@ export default function InvoicesPage() {
         toast.error(j.error || "Save failed");
         return;
       }
-      if (j.duplicate) {
-        toast.warning(j.message || "This bill may already exist.", {
-          description: "Save it anyway?",
+      if (j.rejected) {
+        toast.warning(`Blocked by rule: ${j.rule?.name || "Validation"}`, {
+          description: `${j.rule?.reason || "This bill didn't pass the rules."} — Save anyway?`,
           action: { label: "Save anyway", onClick: () => createInvoice(true) },
           cancel: { label: "Cancel", onClick: () => {} },
         });

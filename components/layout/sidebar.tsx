@@ -13,6 +13,7 @@ import {
   Settings,
   Wallet,
   Workflow,
+  ShieldCheck,
   User,
   Building2,
   KeyRound,
@@ -43,6 +44,7 @@ export const sections = [
     label: "Setup",
     items: [
       { href: "/connectors", label: "Gmail", icon: Mail },
+      { href: "/rules", label: "Rules", icon: ShieldCheck },
       { href: "/settings", label: "Settings", icon: Settings },
     ],
   },

@@ -2,6 +2,7 @@ import "server-only";
 import { oauthClient, google } from "@/lib/google";
 import { sql } from "@/lib/db";
 import { extractInvoice, extractPaymentFromText } from "@/lib/extract";
+import { getRules, evaluateBill, logRejected } from "@/lib/rules";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Account = Record<string, any>;
@@ -131,6 +132,7 @@ export async function runBillImport(accounts: Account[]) {
   let imported = 0;
   let scanned = 0;
   let rateLimited = false;
+  const rules = await getRules();
 
   outer: for (const acc of accounts) {
     if (!acc.refresh_token) continue;
@@ -165,16 +167,34 @@ export async function runBillImport(accounts: Account[]) {
         continue;
       }
 
-      // Skip if we already have this exact bill (same vendor + invoice number).
       const invNo = str(d.invoiceNumber);
       const vName = str(d.vendor);
+
+      // Check duplicate, then run the rules engine.
+      let duplicate = false;
       if (invNo && vName) {
         const dup = await sql`
           select 1 from invoices
           where lower(vendor_name) = lower(${vName}) and invoice_number = ${invNo}
           limit 1
         `;
-        if (dup.length) continue;
+        duplicate = dup.length > 0;
+      }
+      const verdict = evaluateBill(
+        { vendor: vName, invoiceNumber: invNo, total: d.total, confidence: d.confidence, itemsCount: Array.isArray(d.items) ? d.items.length : 0 },
+        { duplicate },
+        rules
+      );
+      if (!verdict.accepted && verdict.rejectedBy) {
+        await logRejected({
+          source: "gmail",
+          vendorName: vName,
+          invoiceNumber: invNo,
+          total: d.total ?? null,
+          reasonKey: verdict.rejectedBy.key,
+          reason: verdict.rejectedBy.reason,
+        });
+        continue; // rule blocked this — don't save junk/duplicates
       }
 
       let vendorId: string | null = null;
@@ -195,13 +215,13 @@ export async function runBillImport(accounts: Account[]) {
           vendor_id, vendor_name, vendor_gstin, buyer, buyer_gstin,
           invoice_number, invoice_date, due_date, place_of_supply, currency,
           subtotal, cgst, sgst, igst, gst, total, amount_paid, balance, status, category,
-          items, bank_name, bank_account, bank_ifsc, raw, source, gmail_message_id
+          items, bank_name, bank_account, bank_ifsc, raw, source, gmail_message_id, rule_notes
         ) values (
           ${vendorId}, ${vendorName}, ${str(d.vendorGstin)}, ${str(d.buyer)}, ${str(d.buyerGstin)},
           ${str(d.invoiceNumber)}, ${d.invoiceDate}, ${d.dueDate}, ${str(d.placeOfSupply)}, ${str(d.currency) ?? "INR"},
           ${d.subtotal}, ${d.cgst}, ${d.sgst}, ${d.igst}, ${d.gst}, ${d.total}, ${d.amountPaid}, ${d.balance}, ${str(d.status) ?? "unpaid"}, ${str(d.category)},
           ${d.items ? sql.json(JSON.parse(JSON.stringify(d.items))) : null}, ${str(d.bankName)}, ${str(d.bankAccount)}, ${str(d.bankIfsc)},
-          ${sql.json(JSON.parse(JSON.stringify(d)))}, 'gmail', ${dedupeKey}
+          ${sql.json(JSON.parse(JSON.stringify(d)))}, 'gmail', ${dedupeKey}, ${sql.json(JSON.parse(JSON.stringify(verdict.checks)))}
         )
         returning id
       `;

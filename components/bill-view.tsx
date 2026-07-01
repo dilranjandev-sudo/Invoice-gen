@@ -1,6 +1,6 @@
 "use client";
 
-import { PencilLine, Trash2, FileText } from "lucide-react";
+import { PencilLine, Trash2, FileText, Check, AlertTriangle, ShieldCheck } from "lucide-react";
 import { PayPill } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatMoney, formatDate, cn } from "@/lib/utils";
@@ -155,6 +155,27 @@ export function BillView({
             <Field k="Account" v={row.bank_account} mono />
             <Field k="IFSC" v={row.bank_ifsc} mono />
           </div>
+        </Section>
+      )}
+
+      {/* Rule checks */}
+      {Array.isArray(row.rule_notes) && row.rule_notes.length > 0 && (
+        <Section title="Rule checks">
+          <ul className="space-y-1.5">
+            {row.rule_notes.map((c: { key: string; name: string; ok: boolean; detail: string; action: string }, i: number) => (
+              <li key={i} className="flex items-center gap-2 text-sm">
+                {c.ok ? (
+                  <Check className="size-4 shrink-0 text-success" />
+                ) : c.action === "flag" ? (
+                  <AlertTriangle className="size-4 shrink-0 text-warning" />
+                ) : (
+                  <ShieldCheck className="size-4 shrink-0 text-danger" />
+                )}
+                <span className="text-foreground">{c.name}</span>
+                <span className="ml-auto text-xs text-muted-foreground">{c.detail}</span>
+              </li>
+            ))}
+          </ul>
         </Section>
       )}
 
