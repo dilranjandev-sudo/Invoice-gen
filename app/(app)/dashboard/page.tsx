@@ -54,12 +54,19 @@ export default function DashboardPage() {
   const [s, setS] = useState<Stats | null>(null);
   const [syncing, setSyncing] = useState(false);
 
-  async function load() {
+  async function load(attempt = 0) {
     try {
       const r = await fetch("/api/stats");
       const j = await r.json();
-      if (!j.error) setS(j);
-    } catch {}
+      if (!j.error) {
+        setS(j);
+        return;
+      }
+      throw new Error(j.error);
+    } catch {
+      // Retry a couple of times — covers a cold-start / DB pooler hiccup.
+      if (attempt < 3) setTimeout(() => load(attempt + 1), 1200 * (attempt + 1));
+    }
   }
 
   async function syncNow() {
@@ -157,7 +164,7 @@ export default function DashboardPage() {
         <Card className="p-5 sm:col-span-2">
           <div className="flex items-center justify-between">
             <h3 className="text-base font-semibold">Payment Status</h3>
-            <button onClick={load} className="grid size-8 place-items-center rounded-lg border border-border text-muted-foreground hover:bg-surface-muted">
+            <button onClick={() => load()} className="grid size-8 place-items-center rounded-lg border border-border text-muted-foreground hover:bg-surface-muted">
               <RefreshCw className="size-4" />
             </button>
           </div>
