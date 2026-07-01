@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search, Bell, FileText, Users, CreditCard, Loader2 } from "lucide-react";
 import { MobileMenu } from "./mobile-menu";
+import { ProfileMenu } from "./profile-menu";
 import { formatMoney } from "@/lib/utils";
 
 interface Result {
@@ -113,10 +114,13 @@ export function Topbar() {
         )}
       </div>
 
-      <button className="relative ml-auto grid size-9 place-items-center rounded-md border border-border text-muted-foreground hover:bg-surface-muted">
-        <Bell className="size-5" />
-        <span className="absolute right-2 top-2 size-2 rounded-full bg-danger ring-2 ring-surface" />
-      </button>
+      <div className="ml-auto flex items-center gap-2">
+        <button className="relative grid size-9 place-items-center rounded-md border border-border text-muted-foreground hover:bg-surface-muted">
+          <Bell className="size-5" />
+          <span className="absolute right-2 top-2 size-2 rounded-full bg-danger ring-2 ring-surface" />
+        </button>
+        <ProfileMenu />
+      </div>
     </header>
   );
 }

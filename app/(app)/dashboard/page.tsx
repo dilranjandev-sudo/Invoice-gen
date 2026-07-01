@@ -14,11 +14,11 @@ import {
   ArrowRight,
   Loader2,
 } from "lucide-react";
-import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PayPill } from "@/components/ui/badge";
 import { PageHeader } from "@/components/layout/page-header";
+import { useSync } from "@/components/sync-provider";
 import { formatMoney, cn } from "@/lib/utils";
 
 interface Stats {
@@ -52,7 +52,7 @@ function pct(now: number, prev: number): { txt: string; up: boolean } {
 
 export default function DashboardPage() {
   const [s, setS] = useState<Stats | null>(null);
-  const [syncing, setSyncing] = useState(false);
+  const { run: runSync, running: syncing } = useSync();
 
   async function load(attempt = 0) {
     try {
@@ -69,26 +69,6 @@ export default function DashboardPage() {
     }
   }
 
-  async function syncNow() {
-    setSyncing(true);
-    try {
-      const r = await fetch("/api/gmail/sync-all", { method: "POST" });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j.error || "Sync failed");
-      const p = j.payments?.synced ?? 0;
-      const b = j.bills?.imported ?? 0;
-      const parts = [];
-      if (p > 0) parts.push(`${p} payment${p === 1 ? "" : "s"}`);
-      if (b > 0) parts.push(`${b} bill${b === 1 ? "" : "s"}`);
-      toast.success(parts.length ? `Synced — ${parts.join(" · ")}` : "You're up to date");
-      window.dispatchEvent(new Event("payrecord:synced"));
-      load();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Sync failed");
-    } finally {
-      setSyncing(false);
-    }
-  }
   useEffect(() => {
     load();
     const onSync = () => load();
@@ -129,7 +109,7 @@ export default function DashboardPage() {
         title="Dashboard"
         description="Live overview of your payments and bills."
         actions={
-          <Button variant="outline" onClick={syncNow} disabled={syncing}>
+          <Button variant="outline" onClick={runSync} disabled={syncing}>
             <RefreshCw className={cn("size-4", syncing && "animate-spin")} />
             {syncing ? "Syncing…" : "Sync now"}
           </Button>

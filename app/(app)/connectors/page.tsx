@@ -5,6 +5,7 @@ import { Plus, RefreshCw, Unlink, Loader2, ShieldCheck, History } from "lucide-r
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/layout/page-header";
+import { useSync } from "@/components/sync-provider";
 
 interface Account {
   id: string;
@@ -40,6 +41,7 @@ function timeAgo(iso: string | null) {
 export default function ConnectorsPage() {
   const [accounts, setAccounts] = useState<Account[] | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const { run: runSync, running } = useSync();
 
   const load = useCallback(async () => {
     try {
@@ -64,29 +66,6 @@ export default function ConnectorsPage() {
     }
   }, [load]);
 
-  async function sync() {
-    setSyncing(true);
-    try {
-      const r = await fetch("/api/gmail/sync-all", { method: "POST" });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j.error || "Sync failed");
-      const p = j.payments?.synced ?? 0;
-      const b = j.bills?.imported ?? 0;
-      const parts = [];
-      if (p > 0) parts.push(`${p} payment${p === 1 ? "" : "s"}`);
-      if (b > 0) parts.push(`${b} bill${b === 1 ? "" : "s"}`);
-      if (j.rateLimited) {
-        toast(`Synced ${parts.join(" · ") || "0"} — AI is busy, the rest will sync shortly.`);
-      } else {
-        toast.success(parts.length ? `Synced — ${parts.join(" · ")}` : "You're up to date");
-      }
-      load();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Sync failed");
-    } finally {
-      setSyncing(false);
-    }
-  }
 
   function rescan() {
     toast("Re-scan whole inbox?", {
@@ -157,9 +136,9 @@ export default function ConnectorsPage() {
               <Button variant="ghost" onClick={rescan} disabled={syncing} title="Re-read every email, including ones synced before">
                 <History className="size-4" /> Re-scan
               </Button>
-              <Button variant="outline" onClick={sync} disabled={syncing}>
-                {syncing ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
-                {syncing ? "Syncing…" : "Sync now"}
+              <Button variant="outline" onClick={runSync} disabled={running || syncing}>
+                {running ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
+                {running ? "Syncing…" : "Sync now"}
               </Button>
               <Button onClick={connect}>
                 <Plus className="size-4" /> Add account

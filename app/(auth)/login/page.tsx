@@ -18,16 +18,28 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    if (email.trim().toLowerCase() !== DEMO_EMAIL || password !== DEMO_PASSWORD) {
-      setError("Incorrect email or password.");
-      return;
-    }
     setBusy(true);
-    toast.success("Welcome back, Admin");
-    router.push("/dashboard");
+    try {
+      const r = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      if (!r.ok) {
+        setError("Incorrect email or password.");
+        setBusy(false);
+        return;
+      }
+      toast.success("Welcome back");
+      router.push("/dashboard");
+      router.refresh();
+    } catch {
+      setError("Couldn't sign in. Try again.");
+      setBusy(false);
+    }
   }
 
   function fillDemo() {

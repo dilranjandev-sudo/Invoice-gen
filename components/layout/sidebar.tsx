@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
   Home,
   ClipboardCheck,
@@ -17,13 +17,7 @@ import {
   Percent,
   TrendingDown,
   Scale,
-  User,
-  Building2,
-  KeyRound,
-  LogOut,
-  ChevronUp,
 } from "lucide-react";
-import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 export const sections = [
@@ -130,82 +124,7 @@ export function Sidebar() {
           </div>
         ))}
       </nav>
-
-      <ProfileMenu />
     </aside>
   );
 }
 
-function ProfileMenu() {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  const router = useRouter();
-
-  useEffect(() => {
-    function onClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener("mousedown", onClick);
-    return () => document.removeEventListener("mousedown", onClick);
-  }, []);
-
-  const items = [
-    { label: "Profile Settings", icon: User, onClick: () => toast("Opening profile settings") },
-    { label: "Company Settings", icon: Building2, href: "/settings" },
-    { label: "Change Password", icon: KeyRound, onClick: () => toast("Opening password change") },
-  ];
-
-  return (
-    <div ref={ref} className="relative border-t border-border p-3">
-      {open && (
-        <div className="absolute bottom-[calc(100%-0.25rem)] left-3 right-3 overflow-hidden rounded-lg border border-border bg-surface shadow-lg">
-          <div className="border-b border-border px-3 py-2.5">
-            <div className="text-sm font-medium">Admin User</div>
-            <div className="text-xs text-muted-foreground">admin@biqadx.com</div>
-          </div>
-          <div className="p-1">
-            {items.map((it) => {
-              const Icon = it.icon;
-              const cls =
-                "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-foreground hover:bg-surface-muted";
-              return it.href ? (
-                <Link key={it.label} href={it.href} className={cls} onClick={() => setOpen(false)}>
-                  <Icon className="size-4 text-muted-foreground" /> {it.label}
-                </Link>
-              ) : (
-                <button key={it.label} className={cls} onClick={() => { it.onClick?.(); setOpen(false); }}>
-                  <Icon className="size-4 text-muted-foreground" /> {it.label}
-                </button>
-              );
-            })}
-          </div>
-          <div className="border-t border-border p-1">
-            <button
-              onClick={() => router.push("/login")}
-              className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-primary hover:bg-primary-soft"
-            >
-              <LogOut className="size-4" /> Log out
-            </button>
-          </div>
-        </div>
-      )}
-
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className={cn(
-          "flex w-full items-center gap-2.5 rounded-md px-1.5 py-1.5 text-left transition-colors",
-          open ? "bg-surface-muted" : "hover:bg-surface-muted"
-        )}
-      >
-        <div className="grid size-9 place-items-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
-          A
-        </div>
-        <div className="min-w-0 flex-1 leading-tight">
-          <div className="truncate text-sm font-medium text-foreground">Admin User</div>
-          <div className="truncate text-xs text-muted-foreground">Administrator</div>
-        </div>
-        <ChevronUp className={cn("size-4 text-muted-foreground transition-transform", open && "rotate-180")} />
-      </button>
-    </div>
-  );
-}

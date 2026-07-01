@@ -11,8 +11,10 @@ Extract EVERY important field below and return ONLY a valid JSON object — no m
 Rules:
 - Normalize all dates to "YYYY-MM-DD".
 - Amounts must be plain numbers (no currency symbols, no thousands separators). e.g. 1770 not "₹ 1,770.00".
-- "vendor" is the SELLER / supplier (the company that issued the invoice). Capture its address, phone, email and GSTIN.
+- "vendor" is the SELLER / supplier (the company that issued the invoice). Capture its address, phone, email and GSTIN. Do NOT swap it with the buyer.
 - "buyer" is the BILL-TO party.
+- "invoiceNumber": look hard for it — labelled Invoice No / Bill No / Invoice # / Ref No, usually near the top or beside the date. Extract it exactly (keep letters, slashes, dashes). Only use null if it is truly absent.
+- Read amounts carefully from the totals section; never guess or round.
 - "subtotal" = total taxable amount before tax. "cgst"/"sgst"/"igst" = the respective tax amounts (null if that tax is not on the invoice). "gst" = total of all taxes.
 - "total" = grand total. "amountPaid" = amount received (0 if not shown). "balance" = balance due.
 - "status": "paid" if balance is 0 and total > 0, "partial" if 0 < amountPaid < total, otherwise "unpaid".
@@ -144,16 +146,26 @@ async function extractWithGroq(
         "This looks like a scanned PDF with no embedded text. Upload an image (PNG/JPG) of the bill instead."
       );
     }
-    const completion = await groq.chat.completions.create({
-      model: "llama-3.1-8b-instant",
-      temperature: 0,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: "You return only valid JSON." },
-        { role: "user", content: `${PROMPT}\n\nINVOICE TEXT:\n"""\n${text}\n"""` },
-      ],
-    });
-    return parseJson(completion.choices[0]?.message?.content ?? "");
+    const messages = [
+      { role: "system" as const, content: "You return only valid JSON. Read carefully and never invent values." },
+      { role: "user" as const, content: `${PROMPT}\n\nINVOICE TEXT:\n"""\n${text}\n"""` },
+    ];
+    // Prefer the far more accurate 70B model; fall back to 8B if it's rate-limited.
+    for (const model of ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]) {
+      try {
+        const completion = await groq.chat.completions.create({
+          model,
+          temperature: 0,
+          response_format: { type: "json_object" },
+          messages,
+        });
+        return parseJson(completion.choices[0]?.message?.content ?? "");
+      } catch (e) {
+        if (model === "llama-3.1-8b-instant" || !/429|rate.?limit|quota|RESOURCE_EXHAUSTED/i.test(String(e))) throw e;
+        // else: 70B is rate-limited → retry loop falls through to 8B
+      }
+    }
+    throw new Error("AI extraction unavailable.");
   }
 
   // Image → Groq vision model

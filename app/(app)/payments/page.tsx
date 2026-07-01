@@ -20,6 +20,7 @@ import { Drawer } from "@/components/ui/drawer";
 import { Input, Select, Field } from "@/components/ui/input";
 import { RowMenu } from "@/components/ui/row-menu";
 import { PageHeader } from "@/components/layout/page-header";
+import { useSync } from "@/components/sync-provider";
 import { formatMoney, formatDate, cn } from "@/lib/utils";
 
 interface Payment {
@@ -62,7 +63,7 @@ export default function PaymentsPage() {
   const [rows, setRows] = useState<Payment[] | null>(null);
   const [tab, setTab] = useState("all");
   const [q, setQ] = useState("");
-  const [syncing, setSyncing] = useState(false);
+  const { run: runSync, running: syncing } = useSync();
   const [matching, setMatching] = useState(false);
   const [edit, setEdit] = useState<Payment | null>(null);
   const [form, setForm] = useState<Record<string, string>>({});
@@ -80,6 +81,8 @@ export default function PaymentsPage() {
   }
   useEffect(() => {
     load();
+    window.addEventListener("payrecord:synced", load);
+    return () => window.removeEventListener("payrecord:synced", load);
   }, []);
 
   function openEdit(p: Payment) {
@@ -117,25 +120,6 @@ export default function PaymentsPage() {
       load();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed");
-    }
-  }
-
-  async function sync() {
-    setSyncing(true);
-    try {
-      const r = await fetch("/api/gmail/sync", { method: "POST" });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j.error || "Sync failed");
-      if (j.rateLimited) {
-        toast(`Synced ${j.synced} — AI is busy (free-tier limit), the rest will sync shortly.`);
-      } else {
-        toast.success(`Synced — ${j.synced} new payment${j.synced === 1 ? "" : "s"}`);
-      }
-      load();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Sync failed");
-    } finally {
-      setSyncing(false);
     }
   }
 
@@ -181,7 +165,7 @@ export default function PaymentsPage() {
               {matching ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
               {matching ? "Matching…" : "Run AI Match"}
             </Button>
-            <Button onClick={sync} disabled={syncing}>
+            <Button onClick={runSync} disabled={syncing}>
               {syncing ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
               {syncing ? "Syncing…" : "Sync from Gmail"}
             </Button>
