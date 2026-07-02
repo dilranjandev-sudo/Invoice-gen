@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { PageHeader } from "@/components/layout/page-header";
 import { LinkBillDrawer, ExpenseDrawer, type ResolveInvoice } from "@/components/payment-resolve";
+import { TableSkeleton } from "@/components/ui/skeleton";
 import { formatMoney, formatDate, cn } from "@/lib/utils";
 
 interface Item {
@@ -118,11 +119,7 @@ export default function ReviewPage() {
         </div>
       )}
 
-      {all === null && (
-        <div className="flex items-center gap-2 py-16 text-sm text-muted-foreground">
-          <Loader2 className="size-4 animate-spin" /> Loading…
-        </div>
-      )}
+      {all === null && <TableSkeleton rows={4} />}
 
       {nothing && (
         <div className="rounded-md border border-border bg-surface px-6 py-20 text-center shadow-card">

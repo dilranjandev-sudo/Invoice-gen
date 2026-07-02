@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { ShieldCheck, Ban, Loader2, Trash2 } from "lucide-react";
+import { ShieldCheck, Ban, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/layout/page-header";
 import { formatMoney, formatDate, cn } from "@/lib/utils";
 
@@ -78,8 +79,16 @@ export default function RulesPage() {
           <h2 className="text-sm font-semibold">Bill validation rules</h2>
         </div>
         {rules === null ? (
-          <div className="flex items-center gap-2 px-5 py-10 text-sm text-muted-foreground">
-            <Loader2 className="size-4 animate-spin" /> Loading…
+          <div className="divide-y divide-border">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex items-center justify-between gap-4 px-5 py-4">
+                <div className="min-w-0 space-y-2">
+                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="h-3 w-64" />
+                </div>
+                <Skeleton className="h-6 w-11 shrink-0 rounded-full" />
+              </div>
+            ))}
           </div>
         ) : (
           <div className="divide-y divide-border">
@@ -136,7 +145,17 @@ export default function RulesPage() {
           )}
         </div>
         {rejected === null ? (
-          <div className="px-5 py-8 text-center text-sm text-muted-foreground">Loading…</div>
+          <div className="divide-y divide-border">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="flex items-center justify-between gap-4 px-5 py-3">
+                <div className="min-w-0 space-y-2">
+                  <Skeleton className="h-4 w-48" />
+                  <Skeleton className="h-3 w-32" />
+                </div>
+                <Skeleton className="h-6 w-20 shrink-0 rounded-md" />
+              </div>
+            ))}
+          </div>
         ) : rejected.length === 0 ? (
           <div className="px-5 py-10 text-center text-sm text-muted-foreground">
             Nothing blocked yet. Junk, ₹0, non-invoice and duplicate bills will show up here.

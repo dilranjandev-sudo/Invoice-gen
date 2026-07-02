@@ -18,12 +18,13 @@ function createClient() {
     ssl: "require",
     prepare: false,
     connect_timeout: 15,
-    // Keep connections alive longer so active browsing doesn't pay repeated
-    // cold-reconnect costs; recycle after 30 min.
-    idle_timeout: 120,
-    max_lifetime: 60 * 30,
-    // Keep well under the Supabase free-tier pooler client limit so we never
-    // exhaust it (which makes new connections time out for everyone).
+    // Recycle idle connections quickly. The Supabase pgbouncer pooler closes
+    // server-side connections after a short idle period; if we keep ours open
+    // longer we end up reusing dead sockets and every query on them hangs
+    // ~30s. A short idle_timeout drops them before they go stale.
+    idle_timeout: 10,
+    max_lifetime: 60 * 10,
+    // Small pool, safely under the free-tier pooler client limit.
     max: 8,
   });
 }

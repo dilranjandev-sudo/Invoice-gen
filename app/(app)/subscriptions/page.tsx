@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Loader2, Pencil, Trash2, CalendarClock, Repeat, AlertTriangle } from "lucide-react";
+import { Plus, Pencil, Trash2, CalendarClock, Repeat, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Drawer } from "@/components/ui/drawer";
 import { Input, Field, Select } from "@/components/ui/input";
 import { PageHeader } from "@/components/layout/page-header";
+import { StatCardsSkeleton, TableSkeleton } from "@/components/ui/skeleton";
 import { formatMoney, formatDate, cn } from "@/lib/utils";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -105,22 +106,29 @@ export default function SubscriptionsPage() {
         actions={<Button onClick={openNew}><Plus className="size-4" /> Add subscription</Button>}
       />
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <Card className="flex items-center gap-3 p-4">
-          <div className="grid size-10 place-items-center rounded-md bg-primary-soft text-primary"><Repeat className="size-5" /></div>
-          <div><div className="text-xs text-muted-foreground">Active</div><div className="text-lg font-bold">{active.length}</div></div>
-        </Card>
-        <Card className="flex items-center gap-3 p-4">
-          <div className="grid size-10 place-items-center rounded-md bg-surface-muted text-muted-foreground"><CalendarClock className="size-5" /></div>
-          <div><div className="text-xs text-muted-foreground">Yearly cost (est.)</div><div className="text-lg font-bold">{formatMoney(yearlyCost)}</div></div>
-        </Card>
-        <Card className="flex items-center gap-3 p-4">
-          <div className="grid size-10 place-items-center rounded-md bg-warning-soft text-warning"><AlertTriangle className="size-5" /></div>
-          <div><div className="text-xs text-muted-foreground">Renewing ≤ 30 days</div><div className="text-lg font-bold">{dueSoon.length}</div></div>
-        </Card>
-      </div>
+      {rows === null ? (
+        <StatCardsSkeleton count={3} />
+      ) : (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <Card className="flex items-center gap-3 p-4">
+            <div className="grid size-10 place-items-center rounded-md bg-primary-soft text-primary"><Repeat className="size-5" /></div>
+            <div><div className="text-xs text-muted-foreground">Active</div><div className="text-lg font-bold">{active.length}</div></div>
+          </Card>
+          <Card className="flex items-center gap-3 p-4">
+            <div className="grid size-10 place-items-center rounded-md bg-surface-muted text-muted-foreground"><CalendarClock className="size-5" /></div>
+            <div><div className="text-xs text-muted-foreground">Yearly cost (est.)</div><div className="text-lg font-bold">{formatMoney(yearlyCost)}</div></div>
+          </Card>
+          <Card className="flex items-center gap-3 p-4">
+            <div className="grid size-10 place-items-center rounded-md bg-warning-soft text-warning"><AlertTriangle className="size-5" /></div>
+            <div><div className="text-xs text-muted-foreground">Renewing ≤ 30 days</div><div className="text-lg font-bold">{dueSoon.length}</div></div>
+          </Card>
+        </div>
+      )}
 
-      <div className="overflow-hidden rounded-md border border-border bg-surface shadow-card">
+      {rows === null ? (
+        <TableSkeleton rows={6} />
+      ) : (
+        <div className="overflow-hidden rounded-md border border-border bg-surface shadow-card">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[900px] text-sm">
             <thead>
@@ -135,7 +143,6 @@ export default function SubscriptionsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {rows === null && <tr><td colSpan={7} className="px-5 py-12 text-center"><Loader2 className="mx-auto size-5 animate-spin text-muted-foreground" /></td></tr>}
               {rows && rows.length === 0 && <tr><td colSpan={7} className="px-5 py-14 text-center text-sm text-muted-foreground">Nothing yet — add Hostinger, Google Workspace, your domain, etc.</td></tr>}
               {rows?.map((s) => {
                 const d = daysTo(s.renewal_date);
@@ -164,6 +171,7 @@ export default function SubscriptionsPage() {
           </table>
         </div>
       </div>
+      )}
 
       <Drawer open={open} onClose={() => setOpen(false)} title={editId ? "Edit subscription" : "Add subscription"}
         footer={<><Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button><Button disabled={saving} onClick={save}>{saving ? "Saving…" : editId ? "Save" : "Add"}</Button></>}>

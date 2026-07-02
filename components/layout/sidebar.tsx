@@ -22,12 +22,17 @@ import {
   FolderClosed,
   ChevronLeft,
   ChevronDown,
+  LayoutDashboard,
+  Receipt,
+  Building2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+// Top-level menu groups → each is a parent with an icon and a submenu of items.
 export const sections = [
   {
-    label: "Overview",
+    label: "Dashboard",
+    icon: LayoutDashboard,
     items: [
       { href: "/dashboard", label: "Home", icon: Home },
       { href: "/cashflow", label: "Cash Flow", icon: TrendingDown },
@@ -36,6 +41,7 @@ export const sections = [
   },
   {
     label: "Payables",
+    icon: Receipt,
     items: [
       { href: "/review", label: "To Review", icon: ClipboardCheck, review: true },
       { href: "/invoices", label: "Bills", icon: FileText },
@@ -45,10 +51,12 @@ export const sections = [
   },
   {
     label: "Sales",
+    icon: ScrollText,
     items: [{ href: "/quotations", label: "Quotations", icon: ScrollText }],
   },
   {
     label: "Tax",
+    icon: Percent,
     items: [
       { href: "/gst", label: "GST", icon: Percent },
       { href: "/tds", label: "TDS", icon: Scale },
@@ -56,6 +64,7 @@ export const sections = [
   },
   {
     label: "Company",
+    icon: Building2,
     items: [
       { href: "/subscriptions", label: "Subscriptions", icon: Repeat },
       { href: "/documents", label: "Documents", icon: FolderClosed },
@@ -63,6 +72,7 @@ export const sections = [
   },
   {
     label: "Setup",
+    icon: Settings,
     items: [
       { href: "/connectors", label: "Gmail", icon: Mail },
       { href: "/rules", label: "Rules", icon: ShieldCheck },
@@ -77,10 +87,7 @@ export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const [openSecs, setOpenSecs] = useState<Record<string, boolean>>({});
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
-  // A section is open unless it has been explicitly closed.
-  const secOpen = (label: string) => openSecs[label] !== false;
 
-  // Restore preferences.
   useEffect(() => {
     setCollapsed(localStorage.getItem("pr_sidebar_collapsed") === "1");
     try {
@@ -97,9 +104,10 @@ export function Sidebar() {
       return next;
     });
   }
-  function toggleSec(label: string) {
+  function toggleSec(label: string, defaultOpen: boolean) {
     setOpenSecs((prev) => {
-      const next = { ...prev, [label]: prev[label] === false };
+      const current = prev[label] ?? defaultOpen;
+      const next = { ...prev, [label]: !current };
       localStorage.setItem("pr_sidebar_sections", JSON.stringify(next));
       return next;
     });
@@ -154,67 +162,115 @@ export function Sidebar() {
         </button>
       </div>
 
-      <nav className={cn("flex-1 space-y-3.5 overflow-y-auto py-3", collapsed ? "px-2" : "px-3")}>
-        {sections.map((section) => {
-          const open = collapsed || secOpen(section.label);
-          return (
-          <div key={section.label}>
-            {collapsed ? (
-              <div className="mx-auto mb-1.5 h-px w-6 bg-border" />
-            ) : (
-              <button
-                onClick={() => toggleSec(section.label)}
-                className="mb-1 flex w-full items-center justify-between rounded px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-wider text-muted-foreground/80 transition-colors hover:text-foreground"
+      {!collapsed && (
+        <div className="px-4 pt-4 text-[10.5px] font-semibold uppercase tracking-wider text-muted-foreground/70">Main Menu</div>
+      )}
+
+      <nav className={cn("flex-1 space-y-1 overflow-y-auto py-3", collapsed ? "px-2" : "px-3")}>
+        {sections.map((group) => {
+          const Parent = group.icon;
+          const single = group.items.length === 1;
+          const parentActive = group.items.some((it) => isActive(it.href));
+          const open = openSecs[group.label] ?? parentActive;
+          const groupBadge = group.items.some((it) => "review" in it && it.review) && reviewCount > 0;
+
+          /* ---- Collapsed icon rail ---- */
+          if (collapsed) {
+            return (
+              <Link
+                key={group.label}
+                href={group.items[0].href}
+                title={group.label}
+                className="group relative flex justify-center rounded-md p-1"
               >
-                <span>{section.label}</span>
-                <ChevronDown className={cn("size-3.5 transition-transform", !open && "-rotate-90")} />
+                <span
+                  className={cn(
+                    "relative grid size-8 place-items-center rounded-md transition-colors",
+                    parentActive ? "bg-primary text-white" : "bg-[var(--menu-icon-bg)] text-[#5a5b5b] group-hover:bg-primary group-hover:text-white"
+                  )}
+                >
+                  <Parent className="size-[17px]" />
+                  {groupBadge && <span className="absolute -right-1 -top-1 size-2.5 rounded-full bg-danger ring-2 ring-surface" />}
+                </span>
+              </Link>
+            );
+          }
+
+          /* ---- Single-item group → direct link ---- */
+          if (single) {
+            const it = group.items[0];
+            const active = isActive(it.href);
+            return (
+              <Link
+                key={group.label}
+                href={it.href}
+                className={cn(
+                  "group flex items-center gap-2.5 rounded-md py-1 pl-1 pr-2.5 text-[13.5px] font-medium transition-colors",
+                  active ? "bg-primary-soft text-primary" : "text-[#5a5b5b] hover:bg-primary-soft hover:text-primary"
+                )}
+              >
+                <span className={cn("grid size-7 shrink-0 place-items-center rounded-md transition-colors", active ? "bg-primary text-white" : "bg-[var(--menu-icon-bg)] text-[#5a5b5b] group-hover:bg-primary group-hover:text-white")}>
+                  <Parent className="size-4" />
+                </span>
+                <span className="flex-1">{group.label}</span>
+              </Link>
+            );
+          }
+
+          /* ---- Parent with submenu ---- */
+          return (
+            <div key={group.label}>
+              <button
+                onClick={() => toggleSec(group.label, parentActive)}
+                className={cn(
+                  "group flex w-full items-center gap-2.5 rounded-md py-1 pl-1 pr-2.5 text-[13.5px] font-medium transition-colors",
+                  parentActive ? "text-primary" : "text-[#5a5b5b] hover:text-primary"
+                )}
+              >
+                <span className={cn("grid size-7 shrink-0 place-items-center rounded-md transition-colors", parentActive ? "bg-primary text-white" : "bg-[var(--menu-icon-bg)] text-[#5a5b5b] group-hover:bg-primary group-hover:text-white")}>
+                  <Parent className="size-4" />
+                </span>
+                <span className="flex-1 text-left">{group.label}</span>
+                {groupBadge && !open && (
+                  <span className="grid size-[18px] shrink-0 place-items-center rounded-full bg-danger text-[10px] font-semibold text-white">{reviewCount}</span>
+                )}
+                <ChevronDown className={cn("size-3.5 shrink-0 text-muted-foreground transition-transform", !open && "-rotate-90")} />
               </button>
-            )}
-            {open && (
-            <ul className="space-y-0.5">
-              {section.items.map((item) => {
-                const Icon = item.icon;
-                const active = isActive(item.href);
-                const showBadge = "review" in item && item.review && reviewCount > 0;
-                return (
-                  <li key={item.href}>
-                    <Link
-                      href={item.href}
-                      title={collapsed ? item.label : undefined}
-                      className={cn(
-                        "group flex items-center rounded-md text-[13.5px] font-medium transition-colors",
-                        collapsed ? "justify-center p-1" : "gap-2.5 py-1 pl-1 pr-2.5",
-                        active
-                          ? "bg-primary-soft text-primary"
-                          : "text-[#5a5b5b] hover:bg-primary-soft hover:text-primary"
-                      )}
-                    >
-                      <span
-                        className={cn(
-                          "relative grid size-7 shrink-0 place-items-center rounded-md transition-colors",
-                          active
-                            ? "bg-primary text-white"
-                            : "bg-[var(--menu-icon-bg)] text-[#5a5b5b] group-hover:bg-primary group-hover:text-white"
-                        )}
-                      >
-                        <Icon className="size-4" />
-                        {collapsed && showBadge && (
-                          <span className="absolute -right-1 -top-1 size-2.5 rounded-full bg-danger ring-2 ring-surface" />
-                        )}
-                      </span>
-                      {!collapsed && <span className="flex-1">{item.label}</span>}
-                      {!collapsed && showBadge && (
-                        <span className="grid size-[18px] shrink-0 place-items-center rounded-full bg-danger text-[10px] font-semibold text-white">
-                          {reviewCount}
-                        </span>
-                      )}
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-            )}
-          </div>
+
+              {open && (
+                <div className="relative mb-1 mt-0.5">
+                  <span className="absolute bottom-1.5 left-[18px] top-1 w-px bg-border" />
+                  <ul>
+                    {group.items.map((it) => {
+                      const active = isActive(it.href);
+                      const showBadge = "review" in it && it.review && reviewCount > 0;
+                      return (
+                        <li key={it.href}>
+                          <Link
+                            href={it.href}
+                            className={cn(
+                              "group relative flex items-center gap-2 rounded-md py-1.5 pl-[34px] pr-2.5 text-[13px] font-medium transition-colors",
+                              active ? "text-primary" : "text-[#5a5b5b] hover:text-primary"
+                            )}
+                          >
+                            <span
+                              className={cn(
+                                "absolute left-[15px] size-[7px] rounded-full ring-2 ring-surface transition-colors",
+                                active ? "bg-primary" : "bg-border-strong group-hover:bg-primary"
+                              )}
+                            />
+                            <span className="flex-1">{it.label}</span>
+                            {showBadge && (
+                              <span className="grid size-[18px] shrink-0 place-items-center rounded-full bg-danger text-[10px] font-semibold text-white">{reviewCount}</span>
+                            )}
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              )}
+            </div>
           );
         })}
       </nav>

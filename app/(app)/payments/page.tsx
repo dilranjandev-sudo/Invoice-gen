@@ -22,6 +22,7 @@ import { RowMenu } from "@/components/ui/row-menu";
 import { PageHeader } from "@/components/layout/page-header";
 import { useSync } from "@/components/sync-provider";
 import { LinkBillDrawer, ExpenseDrawer, type ResolveInvoice } from "@/components/payment-resolve";
+import { StatCardsSkeleton, TableSkeleton } from "@/components/ui/skeleton";
 import { Link2 } from "lucide-react";
 import { formatMoney, formatDate, cn } from "@/lib/utils";
 
@@ -186,11 +187,15 @@ export default function PaymentsPage() {
       />
 
       {/* Summary */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <SummaryCard icon={Wallet} tone="bg-primary-soft text-primary" label="Total Payments" value={formatMoney(sum)} sub={`${all.length} records`} />
-        <SummaryCard icon={CheckCircle2} tone="bg-emerald-50 text-emerald-600" label="Matched" value={String(matchedCount)} sub="linked to invoices" />
-        <SummaryCard icon={CircleDashed} tone="bg-amber-50 text-amber-600" label="Unmatched" value={String(unmatchedCount)} sub="need review" />
-      </div>
+      {rows === null ? (
+        <StatCardsSkeleton count={3} />
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <SummaryCard icon={Wallet} tone="bg-primary-soft text-primary" label="Total Payments" value={formatMoney(sum)} sub={`${all.length} records`} />
+          <SummaryCard icon={CheckCircle2} tone="bg-emerald-50 text-emerald-600" label="Matched" value={String(matchedCount)} sub="linked to invoices" />
+          <SummaryCard icon={CircleDashed} tone="bg-amber-50 text-amber-600" label="Unmatched" value={String(unmatchedCount)} sub="need review" />
+        </div>
+      )}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative w-full sm:max-w-xs">
@@ -220,6 +225,9 @@ export default function PaymentsPage() {
         </div>
       </div>
 
+      {rows === null ? (
+        <TableSkeleton rows={6} />
+      ) : (
       <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-card">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[940px] text-sm">
@@ -236,9 +244,6 @@ export default function PaymentsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {rows === null && (
-                <tr><td colSpan={8} className="px-5 py-12 text-center"><Loader2 className="mx-auto size-5 animate-spin text-muted-foreground" /></td></tr>
-              )}
               {rows && data.length === 0 && (
                 <tr>
                   <td colSpan={8} className="px-5 py-14 text-center text-sm text-muted-foreground">
@@ -332,6 +337,7 @@ export default function PaymentsPage() {
           </table>
         </div>
       </div>
+      )}
 
       <Drawer
         open={edit !== null}

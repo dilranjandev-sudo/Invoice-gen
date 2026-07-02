@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Upload, Loader2, FileText, Trash2, ExternalLink, FolderOpen } from "lucide-react";
+import { Upload, FileText, Trash2, ExternalLink, FolderOpen } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Drawer } from "@/components/ui/drawer";
 import { Input, Field, Select } from "@/components/ui/input";
 import { PageHeader } from "@/components/layout/page-header";
+import { Skeleton } from "@/components/ui/skeleton";
 import { formatDate } from "@/lib/utils";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -93,7 +94,18 @@ export default function DocumentsPage() {
       </div>
 
       {rows === null ? (
-        <div className="flex items-center gap-2 py-16 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" /> Loading…</div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="flex items-start gap-3 rounded-md border border-border bg-surface p-4 shadow-card">
+              <Skeleton className="size-10 shrink-0 rounded-md" />
+              <div className="min-w-0 flex-1 space-y-2">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-3 w-24" />
+                <Skeleton className="h-3 w-20" />
+              </div>
+            </div>
+          ))}
+        </div>
       ) : data.length === 0 ? (
         <div className="rounded-md border border-dashed border-border bg-surface px-6 py-16 text-center">
           <FolderOpen className="mx-auto size-8 text-muted-foreground" />

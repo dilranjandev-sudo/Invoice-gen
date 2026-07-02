@@ -7,7 +7,6 @@ import {
   Star,
   Sparkles,
   FileText,
-  Loader2,
   Wallet,
   CheckCircle2,
   CircleDollarSign,
@@ -23,6 +22,7 @@ import { RowMenu } from "@/components/ui/row-menu";
 import { UploadExtract, ModeTabs } from "@/components/upload-extract";
 import { BillView } from "@/components/bill-view";
 import { CATEGORIES, type ExtractedInvoice } from "@/lib/invoice-types";
+import { StatCardsSkeleton, TableSkeleton } from "@/components/ui/skeleton";
 import { formatMoney, formatDate, cn } from "@/lib/utils";
 
 interface Row {
@@ -313,12 +313,16 @@ export default function InvoicesPage() {
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <SummaryCard label="Total Billed" value={usd(totalBilled)} icon={Wallet} tone="primary" />
-        <SummaryCard label="Paid" value={usd(totalPaid)} icon={CheckCircle2} tone="success" />
-        <SummaryCard label="Outstanding" value={usd(outstanding)} icon={CircleDollarSign} tone="danger" />
-        <SummaryCard label="Bills" value={String(counts.all)} icon={FileText} tone="muted" />
-      </div>
+      {serverRows === null ? (
+        <StatCardsSkeleton count={4} />
+      ) : (
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <SummaryCard label="Total Billed" value={usd(totalBilled)} icon={Wallet} tone="primary" />
+          <SummaryCard label="Paid" value={usd(totalPaid)} icon={CheckCircle2} tone="success" />
+          <SummaryCard label="Outstanding" value={usd(outstanding)} icon={CircleDollarSign} tone="danger" />
+          <SummaryCard label="Bills" value={String(counts.all)} icon={FileText} tone="muted" />
+        </div>
+      )}
 
       {/* Toolbar: status filter + search + sort */}
       <div className="flex flex-wrap items-center gap-2">
@@ -375,6 +379,9 @@ export default function InvoicesPage() {
       </div>
 
       {/* Table */}
+      {serverRows === null ? (
+        <TableSkeleton rows={6} />
+      ) : (
       <div className="overflow-hidden rounded-md border border-border bg-surface shadow-card">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[960px] text-sm">
@@ -403,9 +410,6 @@ export default function InvoicesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {serverRows === null && (
-                <tr><td colSpan={11} className="px-4 py-12 text-center"><Loader2 className="mx-auto size-5 animate-spin text-muted-foreground" /></td></tr>
-              )}
               {serverRows && data.length === 0 && (
                 <tr><td colSpan={11} className="px-4 py-14 text-center text-sm text-muted-foreground">No bills here — click <span className="font-medium text-foreground">Upload a Bill</span> to add one.</td></tr>
               )}
@@ -471,6 +475,7 @@ export default function InvoicesPage() {
           </table>
         </div>
       </div>
+      )}
 
       {/* Add Invoice drawer */}
       <Drawer

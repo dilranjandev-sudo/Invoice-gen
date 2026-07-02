@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, Wallet, AlertTriangle, CalendarClock, Flame, Gauge } from "lucide-react";
+import { Wallet, AlertTriangle, CalendarClock, Flame, Gauge } from "lucide-react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/layout/page-header";
+import { StatCardsSkeleton, Skeleton } from "@/components/ui/skeleton";
 import { formatMoney, formatDate, cn } from "@/lib/utils";
 
 interface Bill { id: string; invoice_number: string | null; vendor_name: string | null; due: number; due_date: string | null }
@@ -31,7 +32,14 @@ export default function CashFlowPage() {
   }
 
   if (!d) {
-    return <div className="flex items-center gap-2 py-20 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" /> Loading cash flow…</div>;
+    return (
+      <div className="space-y-6">
+        <PageHeader title="Cash Flow" description="What you owe, when it's due, and how fast you're spending — your runway at a glance." />
+        <StatCardsSkeleton count={4} />
+        <Skeleton className="h-64 w-full rounded-2xl" />
+        <Skeleton className="h-64 w-full rounded-2xl" />
+      </div>
+    );
   }
 
   const bal = Number(balance) || 0;

@@ -9,7 +9,6 @@ import {
   Phone,
   MessageSquare,
   Copy,
-  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Avatar } from "@/components/ui/avatar";
@@ -20,6 +19,7 @@ import { TDS_SECTIONS } from "@/lib/tds";
 import { RowMenu } from "@/components/ui/row-menu";
 import { PageHeader } from "@/components/layout/page-header";
 import { VendorLedger, type Ledger } from "@/components/vendor-ledger";
+import { TableSkeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 interface Vendor {
@@ -161,6 +161,9 @@ export default function VendorsPage() {
         />
       </div>
 
+      {vendors === null ? (
+        <TableSkeleton rows={6} />
+      ) : (
       <div className="overflow-hidden rounded-md border border-border bg-surface shadow-card">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[940px] text-sm">
@@ -185,9 +188,6 @@ export default function VendorsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {vendors === null && (
-                <tr><td colSpan={9} className="px-4 py-12 text-center"><Loader2 className="mx-auto size-5 animate-spin text-muted-foreground" /></td></tr>
-              )}
               {vendors && rows.length === 0 && (
                 <tr><td colSpan={9} className="px-4 py-14 text-center text-sm text-muted-foreground">No vendors yet — approve an invoice with a new vendor.</td></tr>
               )}
@@ -258,6 +258,7 @@ export default function VendorsPage() {
           </table>
         </div>
       </div>
+      )}
 
       <Drawer
         open={edit !== null}

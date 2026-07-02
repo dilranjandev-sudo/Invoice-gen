@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Loader2, Download, Scale, Info } from "lucide-react";
+import { Download, Scale, Info } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/layout/page-header";
+import { StatCardsSkeleton, Skeleton } from "@/components/ui/skeleton";
 import { formatMoney } from "@/lib/utils";
 
 interface TdsData {
@@ -35,7 +36,17 @@ export default function TdsPage() {
     URL.revokeObjectURL(url);
   }
 
-  if (!d) return <div className="flex items-center gap-2 py-20 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" /> Loading TDS…</div>;
+  if (!d) return (
+    <div className="space-y-6">
+      <PageHeader
+        title="TDS"
+        description="Tax deducted at source on vendor payments — by section. Set each vendor's section on the Vendors page."
+      />
+      <StatCardsSkeleton count={4} />
+      <Skeleton className="h-64 w-full rounded-2xl" />
+      <Skeleton className="h-64 w-full rounded-2xl" />
+    </div>
+  );
 
   return (
     <div className="space-y-6">

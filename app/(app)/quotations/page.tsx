@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Drawer } from "@/components/ui/drawer";
 import { Input, Field } from "@/components/ui/input";
 import { PageHeader } from "@/components/layout/page-header";
+import { TableSkeleton } from "@/components/ui/skeleton";
 import { formatMoney, formatDate, cn } from "@/lib/utils";
 
 interface Item { name: string; hsn: string; qty: string; rate: string; gst: string; amount: string }
@@ -158,6 +159,9 @@ export default function QuotationsPage() {
         actions={<Button onClick={openNew}><Plus className="size-4" /> New Quotation</Button>}
       />
 
+      {rows === null ? (
+        <TableSkeleton rows={6} />
+      ) : (
       <div className="overflow-hidden rounded-md border border-border bg-surface shadow-card">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[860px] text-sm">
@@ -173,7 +177,6 @@ export default function QuotationsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {rows === null && <tr><td colSpan={7} className="px-5 py-12 text-center"><Loader2 className="mx-auto size-5 animate-spin text-muted-foreground" /></td></tr>}
               {rows && rows.length === 0 && <tr><td colSpan={7} className="px-5 py-14 text-center text-sm text-muted-foreground">No quotations yet — click <span className="font-medium text-foreground">New Quotation</span>.</td></tr>}
               {rows?.map((q) => (
                 <tr key={q.id} className="hover:bg-surface-muted/30">
@@ -204,6 +207,7 @@ export default function QuotationsPage() {
           </table>
         </div>
       </div>
+      )}
 
       {/* Create / edit */}
       <Drawer
