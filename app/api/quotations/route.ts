@@ -25,8 +25,14 @@ function totals(items: any[]) {
   return { subtotal: Math.round(subtotal * 100) / 100, gst: Math.round(gst * 100) / 100, total: Math.round((subtotal + gst) * 100) / 100 };
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
+    const id = new URL(req.url).searchParams.get("id");
+    if (id) {
+      const [q] = await sql`select * from quotations where id = ${id} limit 1`;
+      if (!q) return NextResponse.json({ error: "Not found." }, { status: 404 });
+      return NextResponse.json(q);
+    }
     const rows = await sql`select * from quotations order by created_at desc limit 200`;
     return NextResponse.json(rows);
   } catch (err) {

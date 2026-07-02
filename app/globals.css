@@ -1,40 +1,42 @@
+@import url("https://fonts.googleapis.com/css2?family=Golos+Text:wght@400..900&display=swap");
 @import "tailwindcss";
 
 /* ----------------------------------------------------------------------------
-   PayRecord — design system (light, premium)
-   Indigo→blue brand, soft pastel accents, layered depth.
+   PayRecord — design tokens ported from the CRMS admin theme
+   Red primary (#E41F07), Golos Text, flat white surfaces, soft shadows.
 ---------------------------------------------------------------------------- */
 
 :root {
-  --background: #f5f6fb;
+  --background: #f7f8f9;
   --surface: #ffffff;
-  --surface-muted: #f1f4f9;
-  --foreground: #0b1220;
-  --muted-foreground: #667085;
-  --border: #eaecf2;
-  --border-strong: #dce0e8;
+  --surface-muted: #f1f4f7;
+  --foreground: #1f2020;
+  --muted-foreground: #707070;
+  --border: #e2e8f0;
+  --border-strong: #e8e8e8;
 
-  --primary: #4f46e5;            /* indigo */
+  --primary: #e41f07;
   --primary-foreground: #ffffff;
-  --primary-soft: #eef2ff;
-  --brand-from: #6366f1;
-  --brand-to: #2563eb;
+  --primary-soft: #fce9e6;
+  --primary-hover: #c11a06;
 
-  --success: #16a34a;
-  --success-soft: #dcfce7;
-  --warning: #d97706;
-  --warning-soft: #fef3c7;
-  --danger: #dc2626;
-  --danger-soft: #fee2e2;
-  --info: #0284c7;
-  --info-soft: #e0f2fe;
-  --violet: #7c3aed;
-  --violet-soft: #f5f3ff;
-  --orange: #ea580c;
-  --orange-soft: #ffedd5;
+  --success: #1abe17;
+  --success-soft: #e8f9e8;
+  --warning: #f9b801;
+  --warning-soft: #fef8e6;
+  --danger: #ef1e1e;
+  --danger-soft: #fde9e9;
+  --info: #2f80ed;
+  --info-soft: #eaf2fd;
+  --violet: #3538cd;
+  --violet-soft: #eaedf7;
+  --orange: #ef5e25;
+  --orange-soft: #fff0eb;
 
-  --ring: #c7d2fe;
-  --radius: 0.9rem;
+  --menu-icon-bg: #f7f8f9;
+
+  --ring: #f6c8c1;
+  --radius: 0.5rem;
 }
 
 @theme inline {
@@ -65,7 +67,7 @@
 
   --color-ring: var(--ring);
 
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Golos Text", var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 
   --radius-2xl: var(--radius);
@@ -76,18 +78,17 @@
 }
 
 body {
-  background:
-    radial-gradient(1200px 600px at 100% -10%, #eef2ff 0%, transparent 55%),
-    radial-gradient(900px 500px at -10% 0%, #eff6ff 0%, transparent 50%),
-    var(--background);
-  color: var(--foreground);
+  background: var(--background);
+  color: var(--muted-foreground);
   font-family: var(--font-sans);
+  font-size: 14px;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
-h1, h2, h3 {
-  letter-spacing: -0.018em;
+h1, h2, h3, h4 {
+  color: var(--foreground);
+  letter-spacing: -0.01em;
 }
 
 /* Finance UIs read better with aligned figures. */
@@ -102,55 +103,67 @@ table {
 
 /* ---- Brand helpers --------------------------------------------------------- */
 .brand-gradient {
-  background-image: linear-gradient(135deg, var(--brand-from), var(--brand-to));
+  background-color: var(--primary);
 }
 .gradient-text {
-  background-image: linear-gradient(135deg, var(--brand-from), var(--brand-to));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--primary);
 }
 .glass {
-  background: rgba(255, 255, 255, 0.72);
-  backdrop-filter: saturate(180%) blur(12px);
-  -webkit-backdrop-filter: saturate(180%) blur(12px);
+  background: #ffffff;
 }
 
-/* ---- Elevation ------------------------------------------------------------- */
+/* ---- Elevation (CRMS soft shadows) ---------------------------------------- */
 .shadow-card {
-  box-shadow:
-    0 1px 2px rgba(16, 24, 40, 0.04),
-    0 1px 3px rgba(16, 24, 40, 0.06);
+  box-shadow: 0px 4px 4px 0px rgba(219, 219, 219, 0.25);
 }
 .shadow-card-lg {
-  box-shadow:
-    0 2px 4px -1px rgba(16, 24, 40, 0.05),
-    0 18px 36px -12px rgba(16, 24, 40, 0.16);
+  box-shadow: 0px 4.4px 12px -1px rgba(222, 222, 222, 0.5);
 }
 .shadow-glow {
-  box-shadow:
-    0 8px 24px -8px rgba(79, 70, 229, 0.35);
+  box-shadow: 0 6px 16px -6px rgba(228, 31, 7, 0.4);
 }
 
 /* Subtle interactive lift */
 .card-hover {
-  transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+  transition: box-shadow 0.18s ease, transform 0.18s ease, border-color 0.18s ease;
 }
 .card-hover:hover {
-  transform: translateY(-3px);
+  transform: translateY(-2px);
   border-color: var(--border-strong);
-  box-shadow:
-    0 2px 4px -1px rgba(16, 24, 40, 0.05),
-    0 20px 38px -12px rgba(16, 24, 40, 0.18);
+  box-shadow: 0px 4.4px 16px -2px rgba(222, 222, 222, 0.6);
 }
 
-/* Gentle entrance for cards/pages */
 @keyframes rise {
   from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 .animate-rise {
-  animation: rise 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: rise 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ---- Print: show only the document, hide app chrome --------------------- */
+@media print {
+  aside,
+  header,
+  .no-print {
+    display: none !important;
+  }
+  main {
+    overflow: visible !important;
+  }
+  body {
+    background: #ffffff !important;
+  }
+  .print-area {
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+  }
+  .print-full {
+    max-width: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
 }
 
 * {

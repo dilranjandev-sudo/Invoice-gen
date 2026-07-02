@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Loader2, Send, Trash2, Pencil, FileText, Mail } from "lucide-react";
+import Link from "next/link";
+import { Plus, Loader2, Send, Trash2, Pencil, FileText, Mail, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Drawer } from "@/components/ui/drawer";
@@ -48,6 +49,18 @@ export default function QuotationsPage() {
   useEffect(() => {
     load();
   }, []);
+
+  // If we arrived from the detail page with ?edit=<id>, open that quote for editing.
+  useEffect(() => {
+    if (!rows) return;
+    const editParam = new URLSearchParams(window.location.search).get("edit");
+    if (editParam) {
+      const q = rows.find((r) => r.id === editParam);
+      if (q) openEdit(q);
+      window.history.replaceState(null, "", "/quotations");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows]);
 
   function upd(k: string, v: string) {
     setForm((f) => ({ ...f, [k]: v }));
@@ -175,6 +188,9 @@ export default function QuotationsPage() {
                   <td className="px-5 py-3.5"><span className={cn("inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize", STATUS_TONE[q.status] ?? STATUS_TONE.draft)}>{q.status}</span></td>
                   <td className="px-5 py-3.5">
                     <div className="flex items-center justify-end gap-1">
+                      <Link href={`/quotations/${q.id}`} title="View / Print" className="grid size-8 place-items-center rounded-md border border-border text-muted-foreground hover:bg-primary-soft hover:text-primary">
+                        <Eye className="size-4" />
+                      </Link>
                       <button onClick={() => sendQuote(q)} disabled={sending === q.id} title="Send email" className="grid size-8 place-items-center rounded-md border border-border text-muted-foreground hover:bg-primary-soft hover:text-primary disabled:opacity-50">
                         {sending === q.id ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
                       </button>
