@@ -3,7 +3,7 @@
 import { useEffect, useState, use } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Printer, Pencil, Loader2, Wallet, PackageCheck } from "lucide-react";
+import { ArrowLeft, Printer, Pencil, Loader2, Wallet, PackageCheck, Link2, CheckCircle2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { formatMoney, formatDate, cn } from "@/lib/utils";
@@ -41,12 +41,27 @@ export default function PoDetailPage({ params }: { params: Promise<{ id: string 
   const router = useRouter();
   const [po, setPo] = useState<PO | null>(null);
   const [notFound, setNotFound] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [bills, setBills] = useState<any[]>([]);
+  const [showLink, setShowLink] = useState(false);
 
   async function fetchPo() {
     const r = await fetch(`/api/purchase-orders?id=${id}`);
     if (r.status === 404) { setNotFound(true); return; }
     if (!r.ok) throw new Error("fetch failed");
     setPo(await r.json());
+  }
+
+  async function linkBill(invoiceId: string) {
+    await fetch("/api/purchase-orders", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ id, action: "link-bill", invoiceId }) });
+    toast.success("Bill linked to PO");
+    setShowLink(false);
+    fetchPo().catch(() => {});
+  }
+  async function unlinkBill() {
+    await fetch("/api/purchase-orders", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ id, action: "unlink-bill" }) });
+    toast.success("Bill unlinked");
+    fetchPo().catch(() => {});
   }
   useEffect(() => {
     let cancelled = false;
@@ -63,6 +78,7 @@ export default function PoDetailPage({ params }: { params: Promise<{ id: string 
       }
     }
     load();
+    fetch("/api/invoices").then((r) => r.json()).then((j) => setBills(Array.isArray(j) ? j : [])).catch(() => {});
     return () => { cancelled = true; };
   }, [id]);
 
@@ -106,6 +122,62 @@ export default function PoDetailPage({ params }: { params: Promise<{ id: string 
           )}
           <Button onClick={() => window.print()}><Printer className="size-4" /> Download</Button>
         </div>
+      </div>
+
+      {/* 3-way match panel (internal — not printed) */}
+      <div className="no-print mx-auto max-w-4xl rounded-lg border border-border bg-surface p-5 shadow-card">
+        <div className="flex items-center justify-between">
+          <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground"><Link2 className="size-4 text-muted-foreground" /> 3-way match</h3>
+          {po.bill ? (
+            <button onClick={unlinkBill} className="text-xs font-medium text-muted-foreground hover:text-danger">Unlink bill</button>
+          ) : (
+            <button onClick={() => setShowLink((v) => !v)} className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"><Link2 className="size-3.5" /> Link a bill</button>
+          )}
+        </div>
+
+        <div className="mt-4 grid grid-cols-3 gap-px overflow-hidden rounded-md border border-border bg-border text-center">
+          <div className="bg-surface px-3 py-3">
+            <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Ordered (PO)</div>
+            <div className="mt-1 text-lg font-bold text-foreground">{formatMoney(total, cur)}</div>
+          </div>
+          <div className="bg-surface px-3 py-3">
+            <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Billed</div>
+            <div className="mt-1 text-lg font-bold text-foreground">{po.bill ? formatMoney(Number(po.bill.total), cur) : "—"}</div>
+          </div>
+          <div className="bg-surface px-3 py-3">
+            <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Paid</div>
+            <div className="mt-1 text-lg font-bold text-foreground">{po.bill ? (po.bill.paid ? "Yes" : "No") : "—"}</div>
+          </div>
+        </div>
+
+        {po.bill ? (
+          (() => {
+            const diff = Number(po.bill.total) - total;
+            const ok = Math.abs(diff) < 0.5;
+            return (
+              <div className={cn("mt-3 flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium", ok ? "bg-success-soft text-success" : "bg-warning-soft text-warning")}>
+                {ok ? <CheckCircle2 className="size-4" /> : <AlertTriangle className="size-4" />}
+                {ok
+                  ? <>Bill #{po.bill.invoice_number || "—"} matches the order exactly.</>
+                  : <>Bill #{po.bill.invoice_number || "—"} is {formatMoney(Math.abs(diff), cur)} {diff > 0 ? "higher" : "lower"} than ordered — please check.</>}
+              </div>
+            );
+          })()
+        ) : (
+          <p className="mt-3 text-xs text-muted-foreground">No bill linked yet. It links automatically when a matching bill arrives, or link one manually.</p>
+        )}
+
+        {showLink && !po.bill && (
+          <div className="mt-3 max-h-64 space-y-1.5 overflow-y-auto rounded-md border border-border p-2">
+            {bills.filter((b) => b.status !== "paid").length === 0 && <p className="px-2 py-3 text-center text-sm text-muted-foreground">No open bills to link.</p>}
+            {bills.filter((b) => b.status !== "paid").map((b) => (
+              <button key={b.id} onClick={() => linkBill(b.id)} className="flex w-full items-center justify-between gap-3 rounded-md border border-border px-3 py-2 text-left text-sm hover:border-primary/50 hover:bg-primary-soft/30">
+                <span className="min-w-0"><span className="block truncate font-medium text-foreground">{b.vendor_name || "—"}</span><span className="text-xs text-muted-foreground">#{b.invoice_number || "—"}</span></span>
+                <span className="shrink-0 font-semibold text-foreground">{formatMoney(Number(b.total) || 0, cur)}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="print-area mx-auto max-w-4xl rounded-lg border border-border bg-surface shadow-card">

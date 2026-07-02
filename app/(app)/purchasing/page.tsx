@@ -6,7 +6,7 @@ import { Plus, Loader2, Send, Trash2, Pencil, Eye, Mail, PackageCheck } from "lu
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Drawer } from "@/components/ui/drawer";
-import { Input, Field } from "@/components/ui/input";
+import { Input, Field, Select } from "@/components/ui/input";
 import { PageHeader } from "@/components/layout/page-header";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { formatMoney, formatDate, cn } from "@/lib/utils";
@@ -36,6 +36,8 @@ export default function PurchaseOrdersPage() {
   const [items, setItems] = useState<Item[]>([emptyItem()]);
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState<string | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [vendors, setVendors] = useState<any[]>([]);
 
   async function load() {
     try {
@@ -48,7 +50,20 @@ export default function PurchaseOrdersPage() {
   }
   useEffect(() => {
     load();
+    fetch("/api/vendors").then((r) => r.json()).then((j) => setVendors(Array.isArray(j) ? j : [])).catch(() => {});
   }, []);
+
+  function pickVendor(id: string) {
+    const v = vendors.find((x) => x.id === id);
+    if (!v) return;
+    setForm((f) => ({
+      ...f,
+      vendorName: v.name ?? "",
+      vendorEmail: v.email ?? "",
+      vendorGstin: v.gstin ?? "",
+      vendorAddress: v.address ?? "",
+    }));
+  }
 
   useEffect(() => {
     if (!rows) return;
@@ -222,6 +237,14 @@ export default function PurchaseOrdersPage() {
         footer={<><Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button><Button disabled={saving} onClick={save}>{saving ? "Saving…" : editId ? "Save changes" : "Create"}</Button></>}
       >
         <div className="space-y-5">
+          {vendors.length > 0 && (
+            <Field label="Pick an existing vendor" hint="Auto-fills the details below — or just type a new one">
+              <Select defaultValue="" onChange={(e) => pickVendor(e.target.value)}>
+                <option value="">— New vendor —</option>
+                {vendors.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
+              </Select>
+            </Field>
+          )}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Vendor name"><Input value={form.vendorName} onChange={(e) => upd("vendorName", e.target.value)} placeholder="Acme Supplies" /></Field>
             <Field label="Vendor email"><Input type="email" value={form.vendorEmail} onChange={(e) => upd("vendorEmail", e.target.value)} placeholder="sales@acme.com" /></Field>

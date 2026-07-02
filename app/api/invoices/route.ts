@@ -137,6 +137,25 @@ export async function POST(req: Request) {
       await sql`insert into bill_files (invoice_id, filename, mime, data) values (${inv.id}, ${str(b.pdfName) ?? "bill.pdf"}, ${str(b.pdfMime) ?? "application/pdf"}, ${String(b.pdfData)})`;
     }
 
+    // 3-way match: auto-link this bill to an open purchase order from the same
+    // vendor with a matching total (within 5%). Best-effort — ignore failures.
+    if (vendorName && num(b.total)) {
+      try {
+        await sql`
+          update purchase_orders set matched_invoice_id = ${inv.id}, status = 'received'
+          where id = (
+            select id from purchase_orders
+            where matched_invoice_id is null
+              and lower(vendor_name) = lower(${vendorName})
+              and total is not null
+              and abs(total - ${num(b.total)}) <= greatest(total * 0.05, 1)
+              and status in ('draft','sent','received')
+            order by created_at desc limit 1
+          )
+        `;
+      } catch { /* ignore */ }
+    }
+
     return NextResponse.json(inv);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to save invoice.";

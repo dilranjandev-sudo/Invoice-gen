@@ -26,7 +26,16 @@ export async function GET(req: Request) {
     if (id) {
       const [po] = await sql`select * from purchase_orders where id = ${id} limit 1`;
       if (!po) return NextResponse.json({ error: "Not found." }, { status: 404 });
-      return NextResponse.json(po);
+      // 3-way match: pull the linked bill + whether that bill has been paid.
+      let bill = null;
+      if (po.matched_invoice_id) {
+        [bill] = await sql`
+          select i.id, i.invoice_number, i.vendor_name, i.total, i.status,
+            exists(select 1 from payments p where p.matched_invoice_id = i.id and p.status = 'approved') as paid
+          from invoices i where i.id = ${po.matched_invoice_id}
+        `;
+      }
+      return NextResponse.json({ ...po, bill });
     }
     const rows = await sql`select * from purchase_orders order by created_at desc limit 200`;
     return NextResponse.json(rows);
@@ -68,6 +77,16 @@ export async function PUT(req: Request) {
     // Quick status change (e.g. mark received / closed)
     if (b.action === "status") {
       await sql`update purchase_orders set status = ${str(b.status) ?? "draft"} where id = ${b.id}`;
+      return NextResponse.json({ ok: true });
+    }
+    // Link / unlink a received bill (3-way match)
+    if (b.action === "link-bill") {
+      if (!b.invoiceId) return NextResponse.json({ error: "Missing invoiceId." }, { status: 400 });
+      await sql`update purchase_orders set matched_invoice_id = ${b.invoiceId}, status = 'received' where id = ${b.id}`;
+      return NextResponse.json({ ok: true });
+    }
+    if (b.action === "unlink-bill") {
+      await sql`update purchase_orders set matched_invoice_id = null where id = ${b.id}`;
       return NextResponse.json({ ok: true });
     }
 
