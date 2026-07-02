@@ -20,6 +20,7 @@ import {
   ScrollText,
   Repeat,
   FolderClosed,
+  ChevronLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -72,7 +73,20 @@ export const sections = [
 export function Sidebar() {
   const pathname = usePathname();
   const [reviewCount, setReviewCount] = useState(0);
+  const [collapsed, setCollapsed] = useState(false);
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
+
+  // Restore collapsed preference.
+  useEffect(() => {
+    setCollapsed(localStorage.getItem("pr_sidebar_collapsed") === "1");
+  }, []);
+  function toggle() {
+    setCollapsed((v) => {
+      const next = !v;
+      localStorage.setItem("pr_sidebar_collapsed", next ? "1" : "0");
+      return next;
+    });
+  }
 
   useEffect(() => {
     function load() {
@@ -87,24 +101,48 @@ export function Sidebar() {
   }, [pathname]);
 
   return (
-    <aside className="hidden md:flex w-[240px] shrink-0 flex-col border-r border-border-strong bg-surface">
-      {/* Brand */}
-      <div className="flex h-14 items-center gap-2.5 border-b border-border-strong px-4">
-        <div className="grid size-8 place-items-center rounded-md bg-primary text-white">
-          <Wallet className="size-[18px]" />
-        </div>
-        <div className="leading-tight">
-          <div className="text-[15px] font-bold tracking-tight text-foreground">PayRecord</div>
-          <div className="text-[10px] text-muted-foreground">Accounts Payable</div>
-        </div>
+    <aside
+      className={cn(
+        "relative hidden shrink-0 flex-col border-r border-border-strong bg-surface transition-[width] duration-200 md:flex",
+        collapsed ? "w-[68px]" : "w-[240px]"
+      )}
+    >
+      {/* Brand + collapse toggle */}
+      <div className={cn("flex h-14 items-center border-b border-border-strong", collapsed ? "justify-center px-2" : "gap-2.5 px-4")}>
+        {!collapsed && (
+          <>
+            <div className="grid size-8 shrink-0 place-items-center rounded-md bg-primary text-white">
+              <Wallet className="size-[18px]" />
+            </div>
+            <div className="leading-tight">
+              <div className="text-[15px] font-bold tracking-tight text-foreground">PayRecord</div>
+              <div className="text-[10px] text-muted-foreground">Accounts Payable</div>
+            </div>
+          </>
+        )}
+        <button
+          onClick={toggle}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          title={collapsed ? "Expand" : "Collapse"}
+          className={cn(
+            "grid size-8 shrink-0 place-items-center rounded-md border border-border-strong text-muted-foreground transition-colors hover:bg-primary hover:text-white",
+            !collapsed && "ml-auto"
+          )}
+        >
+          <ChevronLeft className={cn("size-4 transition-transform", collapsed && "rotate-180")} />
+        </button>
       </div>
 
-      <nav className="flex-1 space-y-3.5 overflow-y-auto px-3 py-3">
+      <nav className={cn("flex-1 space-y-3.5 overflow-y-auto py-3", collapsed ? "px-2" : "px-3")}>
         {sections.map((section) => (
           <div key={section.label}>
-            <div className="mb-1 px-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-muted-foreground/80">
-              {section.label}
-            </div>
+            {collapsed ? (
+              <div className="mx-auto mb-1.5 h-px w-6 bg-border" />
+            ) : (
+              <div className="mb-1 px-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-muted-foreground/80">
+                {section.label}
+              </div>
+            )}
             <ul className="space-y-0.5">
               {section.items.map((item) => {
                 const Icon = item.icon;
@@ -114,8 +152,10 @@ export function Sidebar() {
                   <li key={item.href}>
                     <Link
                       href={item.href}
+                      title={collapsed ? item.label : undefined}
                       className={cn(
-                        "group flex items-center gap-2.5 rounded-md py-1 pl-1 pr-2.5 text-[13.5px] font-medium transition-colors",
+                        "group flex items-center rounded-md text-[13.5px] font-medium transition-colors",
+                        collapsed ? "justify-center p-1" : "gap-2.5 py-1 pl-1 pr-2.5",
                         active
                           ? "bg-primary-soft text-primary"
                           : "text-[#5a5b5b] hover:bg-primary-soft hover:text-primary"
@@ -123,16 +163,19 @@ export function Sidebar() {
                     >
                       <span
                         className={cn(
-                          "grid size-7 shrink-0 place-items-center rounded-md transition-colors",
+                          "relative grid size-7 shrink-0 place-items-center rounded-md transition-colors",
                           active
                             ? "bg-primary text-white"
                             : "bg-[var(--menu-icon-bg)] text-[#5a5b5b] group-hover:bg-primary group-hover:text-white"
                         )}
                       >
                         <Icon className="size-4" />
+                        {collapsed && showBadge && (
+                          <span className="absolute -right-1 -top-1 size-2.5 rounded-full bg-danger ring-2 ring-surface" />
+                        )}
                       </span>
-                      <span className="flex-1">{item.label}</span>
-                      {showBadge && (
+                      {!collapsed && <span className="flex-1">{item.label}</span>}
+                      {!collapsed && showBadge && (
                         <span className="grid size-[18px] shrink-0 place-items-center rounded-full bg-danger text-[10px] font-semibold text-white">
                           {reviewCount}
                         </span>
@@ -146,9 +189,11 @@ export function Sidebar() {
         ))}
       </nav>
 
-      <div className="border-t border-border-strong px-4 py-3 text-[10.5px] text-muted-foreground">
-        Biqadx Private Limited
-      </div>
+      {!collapsed && (
+        <div className="border-t border-border-strong px-4 py-3 text-[10.5px] text-muted-foreground">
+          Biqadx Private Limited
+        </div>
+      )}
     </aside>
   );
 }
