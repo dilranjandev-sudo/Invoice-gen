@@ -7,7 +7,6 @@ import {
   CreditCard,
   Users,
   FileText,
-  Clock,
   ArrowUp,
   ArrowDown,
   RefreshCw,
@@ -121,21 +120,24 @@ export default function DashboardPage() {
         {cards.map((c) => {
           const Icon = c.icon;
           return (
-            <div key={c.label} className="overflow-hidden rounded-lg border border-border bg-surface shadow-card">
-              <div className={cn("flex justify-center py-5", c.top)}>
-                <div className={cn("grid size-12 place-items-center rounded-lg text-white shadow-sm", c.solid)}>
-                  <Icon className="size-6" />
+            <div key={c.label} className="animate-rise card-hover rounded-2xl border border-border bg-surface p-5 shadow-card">
+              <div className="flex items-center justify-between">
+                <div className={cn("grid size-11 place-items-center rounded-xl text-white shadow-sm", c.solid)}>
+                  <Icon className="size-5" />
                 </div>
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold",
+                    c.trend.up ? "bg-success-soft text-success" : "bg-danger-soft text-danger"
+                  )}
+                >
+                  {c.trend.up ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />}
+                  {c.trend.txt}
+                </span>
               </div>
-              <div className="p-4">
-                <div className="text-sm text-muted-foreground">{c.label}</div>
-                <div className="mt-1 text-2xl font-bold tracking-tight">{c.value}</div>
-                <div className="mt-3 flex items-center gap-1.5 text-xs">
-                  <Clock className={cn("size-3.5", c.text)} />
-                  <span className={cn("font-semibold", c.text)}>{c.trend.txt}</span>
-                  <span className="text-muted-foreground">vs Last Month</span>
-                </div>
-              </div>
+              <div className="mt-4 text-sm text-muted-foreground">{c.label}</div>
+              <div className="mt-0.5 text-[1.6rem] font-bold tracking-tight">{c.value}</div>
+              <div className="mt-1 text-[11px] text-muted-foreground">vs last month</div>
             </div>
           );
         })}

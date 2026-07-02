@@ -87,22 +87,22 @@ export function Sidebar() {
   }, [pathname]);
 
   return (
-    <aside className="hidden md:flex w-60 shrink-0 flex-col border-r border-border bg-surface">
+    <aside className="hidden md:flex w-64 shrink-0 flex-col border-r border-border bg-surface/70 glass">
       {/* Brand */}
-      <div className="flex h-16 items-center gap-2.5 px-5">
-        <div className="grid size-9 place-items-center rounded-lg bg-primary text-primary-foreground shadow-sm">
+      <div className="flex h-16 items-center gap-3 px-5">
+        <div className="grid size-9 place-items-center rounded-xl brand-gradient text-white shadow-glow">
           <Wallet className="size-5" />
         </div>
         <div className="leading-tight">
-          <div className="text-[15px] font-semibold tracking-tight text-foreground">PayRecord</div>
+          <div className="text-[15px] font-bold tracking-tight gradient-text">PayRecord</div>
           <div className="text-[11px] text-muted-foreground">Accounts Payable</div>
         </div>
       </div>
 
-      <nav className="flex-1 space-y-6 overflow-y-auto px-3 pb-6 pt-2">
+      <nav className="flex-1 space-y-5 overflow-y-auto px-3 pb-6 pt-2">
         {sections.map((section) => (
           <div key={section.label}>
-            <div className="mb-1.5 px-3 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/50">
+            <div className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/55">
               {section.label}
             </div>
             <div className="space-y-0.5">
@@ -115,19 +115,19 @@ export function Sidebar() {
                     key={item.href}
                     href={item.href}
                     className={cn(
-                      "group flex items-center gap-3 rounded-lg px-3 py-2 text-[13.5px] font-medium transition-all",
+                      "group relative flex items-center gap-3 rounded-xl px-3 py-2 text-[13.5px] font-medium transition-all duration-150",
                       active
-                        ? "bg-primary text-primary-foreground shadow-sm"
+                        ? "brand-gradient text-white shadow-glow"
                         : "text-muted-foreground hover:bg-surface-muted hover:text-foreground"
                     )}
                   >
-                    <Icon className={cn("size-[18px] shrink-0", active ? "text-primary-foreground" : "text-muted-foreground/80 group-hover:text-foreground")} />
+                    <Icon className={cn("size-[18px] shrink-0 transition-colors", active ? "text-white" : "text-muted-foreground/70 group-hover:text-primary")} />
                     <span className="flex-1">{item.label}</span>
                     {showBadge && (
                       <span
                         className={cn(
-                          "grid h-5 min-w-5 place-items-center rounded-full px-1.5 text-[11px] font-semibold",
-                          active ? "bg-white/25 text-primary-foreground" : "bg-primary text-primary-foreground"
+                          "grid h-5 min-w-5 place-items-center rounded-full px-1.5 text-[11px] font-semibold shadow-sm",
+                          active ? "bg-white/25 text-white" : "bg-danger text-white"
                         )}
                       >
                         {reviewCount}
@@ -140,6 +140,10 @@ export function Sidebar() {
           </div>
         ))}
       </nav>
+
+      <div className="border-t border-border/70 px-5 py-3 text-[10.5px] text-muted-foreground/70">
+        Biqadx Private Limited
+      </div>
     </aside>
   );
 }

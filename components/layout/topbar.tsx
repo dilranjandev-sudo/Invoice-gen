@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Bell, FileText, Users, CreditCard, Loader2 } from "lucide-react";
+import { Search, Bell, FileText, Users, CreditCard, Loader2, RefreshCw } from "lucide-react";
 import { MobileMenu } from "./mobile-menu";
 import { ProfileMenu } from "./profile-menu";
-import { formatMoney } from "@/lib/utils";
+import { useSync } from "@/components/sync-provider";
+import { formatMoney, cn } from "@/lib/utils";
 
 interface Result {
   type: string;
@@ -22,6 +23,7 @@ const TYPE_ICON: Record<string, React.ComponentType<{ className?: string }>> = {
 
 export function Topbar() {
   const router = useRouter();
+  const { run: runSync, running: syncing } = useSync();
   const [q, setQ] = useState("");
   const [results, setResults] = useState<Result[]>([]);
   const [open, setOpen] = useState(false);
@@ -64,7 +66,7 @@ export function Topbar() {
   }
 
   return (
-    <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-border bg-surface/80 px-4 backdrop-blur sm:gap-4 sm:px-5 lg:px-8">
+    <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-border glass px-4 sm:gap-4 sm:px-5 lg:px-8">
       <MobileMenu />
       <div ref={boxRef} className="relative w-full max-w-md">
         <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -73,7 +75,7 @@ export function Topbar() {
           onChange={(e) => { setQ(e.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)}
           placeholder="Search bills, vendors, payments…"
-          className="h-9 w-full rounded-md border border-border-strong bg-surface pl-10 pr-4 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="h-10 w-full rounded-xl border border-border-strong bg-surface/80 pl-10 pr-4 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary transition-colors"
         />
         {loading && <Loader2 className="absolute right-3 top-1/2 size-4 -translate-y-1/2 animate-spin text-muted-foreground" />}
 
@@ -115,9 +117,17 @@ export function Topbar() {
       </div>
 
       <div className="ml-auto flex items-center gap-2">
-        <button className="relative grid size-9 place-items-center rounded-md border border-border text-muted-foreground hover:bg-surface-muted">
+        <button
+          onClick={runSync}
+          disabled={syncing}
+          className="hidden items-center gap-2 rounded-xl brand-gradient px-3.5 py-2 text-sm font-medium text-white shadow-glow transition-opacity hover:opacity-95 disabled:opacity-60 sm:inline-flex"
+        >
+          <RefreshCw className={cn("size-4", syncing && "animate-spin")} />
+          {syncing ? "Syncing…" : "Sync"}
+        </button>
+        <button className="relative grid size-10 place-items-center rounded-xl border border-border bg-surface text-muted-foreground transition-colors hover:bg-surface-muted hover:text-foreground">
           <Bell className="size-5" />
-          <span className="absolute right-2 top-2 size-2 rounded-full bg-danger ring-2 ring-surface" />
+          <span className="absolute right-2.5 top-2.5 size-2 rounded-full bg-danger ring-2 ring-surface" />
         </button>
         <ProfileMenu />
       </div>
