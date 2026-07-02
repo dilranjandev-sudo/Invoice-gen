@@ -28,6 +28,7 @@ import {
   ShoppingCart,
   CalendarClock,
   Sparkles,
+  Landmark,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -50,6 +51,7 @@ export const sections = [
       { href: "/review", label: "To Review", icon: ClipboardCheck, review: true },
       { href: "/invoices", label: "Bills", icon: FileText },
       { href: "/payments", label: "Payments", icon: CreditCard },
+      { href: "/reconcile", label: "Reconcile", icon: Landmark },
       { href: "/purchasing", label: "Purchase Orders", icon: ShoppingCart },
       { href: "/vendors", label: "Vendors", icon: Users },
     ],

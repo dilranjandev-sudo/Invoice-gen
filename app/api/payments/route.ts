@@ -65,6 +65,12 @@ export async function PUT(req: Request) {
       return NextResponse.json({ ok: true, status: "expense" });
     }
 
+    // --- Mark a payment reconciled against a bank statement ---------------
+    if (b.action === "reconcile") {
+      await sql`update payments set reconciled = ${b.value === false ? false : true} where id = ${b.id}`;
+      return NextResponse.json({ ok: true });
+    }
+
     // --- Convert an expense back to a normal bill payment -----------------
     if (b.action === "bill") {
       await sql`
@@ -86,6 +92,25 @@ export async function PUT(req: Request) {
     return NextResponse.json({ ok: true });
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : "Update failed." }, { status: 500 });
+  }
+}
+
+// Create a payment manually (e.g. from an unmatched bank-statement debit).
+export async function POST(req: Request) {
+  try {
+    const b = await req.json();
+    const amt = b.amount === "" || b.amount == null ? null : Number(b.amount);
+    const [p] = await sql`
+      insert into payments (payee, amount, currency, paid_on, reference, channel, status, type, category, note, reconciled)
+      values (
+        ${b.payee ? String(b.payee).trim() : "Bank debit"}, ${amt}, ${b.currency ? String(b.currency) : "INR"},
+        ${b.paidOn ? String(b.paidOn) : null}, ${b.ref ? String(b.ref) : null}, ${"Bank statement"},
+        'expense', 'expense', ${b.category ? String(b.category) : "Other"}, ${b.note ? String(b.note) : null}, true
+      ) returning id
+    `;
+    return NextResponse.json({ ok: true, id: p.id });
+  } catch (err) {
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Create failed." }, { status: 500 });
   }
 }
 
