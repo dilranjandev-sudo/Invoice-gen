@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { StorageCard } from "@/components/storage-card";
 import { AutoSyncToggle } from "@/components/auto-sync-toggle";
 import { AutopilotToggle } from "@/components/autopilot-toggle";
+import { TwoFactorCard } from "@/components/twofa-card";
 import { LogoSetting } from "@/components/logo-setting";
 import { company } from "@/lib/mock-data";
 
@@ -27,6 +28,8 @@ export default function SettingsPage() {
       <LogoSetting />
 
       <AutopilotToggle />
+
+      <TwoFactorCard />
 
       <AutoSyncToggle />
 

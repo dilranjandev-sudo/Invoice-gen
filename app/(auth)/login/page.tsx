@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Wallet, Lock, Mail } from "lucide-react";
+import { Wallet, Lock, Mail, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input, Field } from "@/components/ui/input";
@@ -15,6 +15,8 @@ export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState(DEMO_EMAIL);
   const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
+  const [need2fa, setNeed2fa] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -26,16 +28,23 @@ export default function LoginPage() {
       const r = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, code: need2fa ? code : undefined }),
       });
-      if (!r.ok) {
-        setError("Incorrect email or password.");
+      const j = await r.json().catch(() => ({}));
+      if (r.ok && j.ok) {
+        toast.success("Welcome back");
+        router.push("/dashboard");
+        router.refresh();
+        return;
+      }
+      if (j.need2fa) {
+        setNeed2fa(true);
+        setError(r.status === 401 ? "Wrong code — try again." : "");
         setBusy(false);
         return;
       }
-      toast.success("Welcome back");
-      router.push("/dashboard");
-      router.refresh();
+      setError("Incorrect email or password.");
+      setBusy(false);
     } catch {
       setError("Couldn't sign in. Try again.");
       setBusy(false);
@@ -114,6 +123,24 @@ export default function LoginPage() {
               </div>
             </Field>
 
+            {need2fa && (
+              <Field label="Authenticator code">
+                <div className="relative">
+                  <ShieldCheck className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    type="text"
+                    inputMode="numeric"
+                    autoFocus
+                    maxLength={6}
+                    value={code}
+                    onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+                    className="pl-9 tracking-[0.3em]"
+                    placeholder="123456"
+                  />
+                </div>
+              </Field>
+            )}
+
             {error && <p className="text-sm font-medium text-danger">{error}</p>}
 
             <div className="flex items-center justify-between text-sm">
@@ -125,7 +152,7 @@ export default function LoginPage() {
             </div>
 
             <Button type="submit" size="lg" className="w-full" disabled={busy}>
-              {busy ? "Signing in…" : "Sign in"}
+              {busy ? "Signing in…" : need2fa ? "Verify & sign in" : "Sign in"}
             </Button>
           </form>
         </div>
