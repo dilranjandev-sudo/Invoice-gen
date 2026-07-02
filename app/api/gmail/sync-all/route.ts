@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { sql } from "@/lib/db";
 import { runPaymentSync, runBillImport } from "@/lib/gmail-jobs";
 import { runMatching } from "@/lib/run-match";
+import { runAutopilot } from "@/lib/autopilot";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -20,12 +21,14 @@ export async function POST() {
       ? { imported: 0, scanned: 0, rateLimited: true }
       : await runBillImport(accounts);
     const matched = await runMatching();
+    const autopilot = await runAutopilot(); // no-op unless enabled in Settings
 
     return NextResponse.json({
       accounts: accounts.length,
       payments,
       bills,
       matched,
+      autopilot,
       rateLimited: payments.rateLimited || bills.rateLimited,
     });
   } catch (err) {

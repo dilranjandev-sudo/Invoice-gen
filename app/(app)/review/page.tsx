@@ -33,9 +33,11 @@ interface Item {
   source_email: string | null;
   account_detail: string | null;
   match_score: string | number | null;
+  matched_invoice_id: string | null;
   matched_invoice_no: string | null;
   matched_invoice_total: string | number | null;
 }
+interface Flag { key: string; label: string; severity: "high" | "medium" }
 
 export default function ReviewPage() {
   const [all, setAll] = useState<Item[] | null>(null);
@@ -43,14 +45,22 @@ export default function ReviewPage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [linkFor, setLinkFor] = useState<Item | null>(null);
   const [expenseFor, setExpenseFor] = useState<Item | null>(null);
+  const [flags, setFlags] = useState<Record<string, Flag[]>>({});
 
   async function load() {
     try {
       const [pr, ir] = await Promise.all([fetch("/api/payments"), fetch("/api/invoices")]);
       const pj = await pr.json();
       const ij = await ir.json();
-      setAll(Array.isArray(pj) ? pj : []);
+      const list: Item[] = Array.isArray(pj) ? pj : [];
+      setAll(list);
       setInvoices(Array.isArray(ij) ? ij : []);
+      // Anomaly flags for the matched bills (safety check before approving).
+      const ids = list.filter((p) => p.status === "matched" && p.matched_invoice_id).map((p) => p.matched_invoice_id!);
+      if (ids.length) {
+        fetch("/api/anomaly", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ invoiceIds: ids }) })
+          .then((r) => r.json()).then((j) => setFlags(j?.flags ?? {})).catch(() => {});
+      }
     } catch {
       setAll([]);
     }
@@ -210,6 +220,16 @@ export default function ReviewPage() {
                       {sc != null ? `${sc}% match` : "Matched"}
                     </span>
                   </div>
+
+                  {it.matched_invoice_id && (flags[it.matched_invoice_id]?.length ?? 0) > 0 && (
+                    <div className="flex flex-wrap gap-1.5 border-t border-border px-5 py-2.5">
+                      {flags[it.matched_invoice_id].map((f) => (
+                        <span key={f.key} className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold", f.severity === "high" ? "bg-danger-soft text-danger" : "bg-warning-soft text-warning")}>
+                          <AlertTriangle className="size-3" /> {f.label}
+                        </span>
+                      ))}
+                    </div>
+                  )}
 
                   <div className="grid grid-cols-2 gap-px border-y border-border bg-border">
                     <div className="bg-surface px-5 py-4">
