@@ -17,10 +17,14 @@ function createClient() {
   return postgres(url, {
     ssl: "require",
     prepare: false,
-    connect_timeout: 20,
-    idle_timeout: 20,
+    connect_timeout: 15,
+    // Keep connections alive longer so active browsing doesn't pay repeated
+    // cold-reconnect costs; recycle after 30 min.
+    idle_timeout: 120,
     max_lifetime: 60 * 30,
-    max: 5,
+    // Keep well under the Supabase free-tier pooler client limit so we never
+    // exhaust it (which makes new connections time out for everyone).
+    max: 8,
   });
 }
 

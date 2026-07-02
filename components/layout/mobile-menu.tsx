@@ -32,11 +32,20 @@ export function MobileMenu() {
   }, [open]);
 
   useEffect(() => {
-    fetch("/api/stats")
-      .then((r) => r.json())
-      .then((j) => setReviewCount(j?.payments?.needs_action ?? j?.payments?.matched ?? 0))
-      .catch(() => {});
-  }, [pathname]);
+    function load() {
+      fetch("/api/review-count")
+        .then((r) => r.json())
+        .then((j) => setReviewCount(j?.count ?? 0))
+        .catch(() => {});
+    }
+    load();
+    window.addEventListener("payrecord:synced", load);
+    window.addEventListener("payrecord:changed", load);
+    return () => {
+      window.removeEventListener("payrecord:synced", load);
+      window.removeEventListener("payrecord:changed", load);
+    };
+  }, []);
 
   const drawer = (
     // Rendered on <body> (via portal) so no backdrop-filter ancestor traps the

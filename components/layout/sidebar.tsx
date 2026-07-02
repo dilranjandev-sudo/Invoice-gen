@@ -107,15 +107,19 @@ export function Sidebar() {
 
   useEffect(() => {
     function load() {
-      fetch("/api/stats")
+      fetch("/api/review-count")
         .then((r) => r.json())
-        .then((j) => setReviewCount(j?.payments?.needs_action ?? j?.payments?.matched ?? 0))
+        .then((j) => setReviewCount(j?.count ?? 0))
         .catch(() => {});
     }
     load();
     window.addEventListener("payrecord:synced", load);
-    return () => window.removeEventListener("payrecord:synced", load);
-  }, [pathname]);
+    window.addEventListener("payrecord:changed", load);
+    return () => {
+      window.removeEventListener("payrecord:synced", load);
+      window.removeEventListener("payrecord:changed", load);
+    };
+  }, []);
 
   return (
     <aside
