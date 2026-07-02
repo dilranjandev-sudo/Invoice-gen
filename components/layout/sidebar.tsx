@@ -99,13 +99,13 @@ export function Sidebar() {
         </div>
       </div>
 
-      <nav className="flex-1 space-y-5 overflow-y-auto px-4 py-4">
+      <nav className="flex-1 space-y-3.5 overflow-y-auto px-3 py-3">
         {sections.map((section) => (
           <div key={section.label}>
-            <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <div className="mb-1 px-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-muted-foreground/80">
               {section.label}
             </div>
-            <ul className="space-y-1">
+            <ul className="space-y-0.5">
               {section.items.map((item) => {
                 const Icon = item.icon;
                 const active = isActive(item.href);
@@ -115,7 +115,7 @@ export function Sidebar() {
                     <Link
                       href={item.href}
                       className={cn(
-                        "group flex items-center gap-2.5 rounded-md py-1.5 pl-1.5 pr-2.5 text-[14px] font-medium transition-colors",
+                        "group flex items-center gap-2.5 rounded-md py-1 pl-1 pr-2.5 text-[13.5px] font-medium transition-colors",
                         active
                           ? "bg-primary-soft text-primary"
                           : "text-[#5a5b5b] hover:bg-primary-soft hover:text-primary"
@@ -123,13 +123,13 @@ export function Sidebar() {
                     >
                       <span
                         className={cn(
-                          "grid size-8 shrink-0 place-items-center rounded-md transition-colors",
+                          "grid size-7 shrink-0 place-items-center rounded-md transition-colors",
                           active
                             ? "bg-primary text-white"
                             : "bg-[var(--menu-icon-bg)] text-[#5a5b5b] group-hover:bg-primary group-hover:text-white"
                         )}
                       >
-                        <Icon className="size-[17px]" />
+                        <Icon className="size-4" />
                       </span>
                       <span className="flex-1">{item.label}</span>
                       {showBadge && (
