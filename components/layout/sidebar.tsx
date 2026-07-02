@@ -27,6 +27,7 @@ import {
   Building2,
   ShoppingCart,
   CalendarClock,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -37,6 +38,7 @@ export const sections = [
     icon: LayoutDashboard,
     items: [
       { href: "/dashboard", label: "Home", icon: Home },
+      { href: "/copilot", label: "Ask AI", icon: Sparkles },
       { href: "/cashflow", label: "Cash Flow", icon: TrendingDown },
       { href: "/workflow", label: "Workflow", icon: Workflow },
     ],
