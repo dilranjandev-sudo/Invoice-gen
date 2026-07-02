@@ -21,6 +21,7 @@ import {
   Repeat,
   FolderClosed,
   ChevronLeft,
+  ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -74,16 +75,32 @@ export function Sidebar() {
   const pathname = usePathname();
   const [reviewCount, setReviewCount] = useState(0);
   const [collapsed, setCollapsed] = useState(false);
+  const [openSecs, setOpenSecs] = useState<Record<string, boolean>>({});
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
+  // A section is open unless it has been explicitly closed.
+  const secOpen = (label: string) => openSecs[label] !== false;
 
-  // Restore collapsed preference.
+  // Restore preferences.
   useEffect(() => {
     setCollapsed(localStorage.getItem("pr_sidebar_collapsed") === "1");
+    try {
+      const raw = localStorage.getItem("pr_sidebar_sections");
+      if (raw) setOpenSecs(JSON.parse(raw));
+    } catch {
+      /* ignore */
+    }
   }, []);
   function toggle() {
     setCollapsed((v) => {
       const next = !v;
       localStorage.setItem("pr_sidebar_collapsed", next ? "1" : "0");
+      return next;
+    });
+  }
+  function toggleSec(label: string) {
+    setOpenSecs((prev) => {
+      const next = { ...prev, [label]: prev[label] === false };
+      localStorage.setItem("pr_sidebar_sections", JSON.stringify(next));
       return next;
     });
   }
@@ -134,15 +151,22 @@ export function Sidebar() {
       </div>
 
       <nav className={cn("flex-1 space-y-3.5 overflow-y-auto py-3", collapsed ? "px-2" : "px-3")}>
-        {sections.map((section) => (
+        {sections.map((section) => {
+          const open = collapsed || secOpen(section.label);
+          return (
           <div key={section.label}>
             {collapsed ? (
               <div className="mx-auto mb-1.5 h-px w-6 bg-border" />
             ) : (
-              <div className="mb-1 px-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-muted-foreground/80">
-                {section.label}
-              </div>
+              <button
+                onClick={() => toggleSec(section.label)}
+                className="mb-1 flex w-full items-center justify-between rounded px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-wider text-muted-foreground/80 transition-colors hover:text-foreground"
+              >
+                <span>{section.label}</span>
+                <ChevronDown className={cn("size-3.5 transition-transform", !open && "-rotate-90")} />
+              </button>
             )}
+            {open && (
             <ul className="space-y-0.5">
               {section.items.map((item) => {
                 const Icon = item.icon;
@@ -185,8 +209,10 @@ export function Sidebar() {
                 );
               })}
             </ul>
+            )}
           </div>
-        ))}
+          );
+        })}
       </nav>
 
       {!collapsed && (

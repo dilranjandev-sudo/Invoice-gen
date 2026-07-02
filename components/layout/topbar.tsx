@@ -2,11 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Bell, FileText, Users, CreditCard, Loader2, RefreshCw } from "lucide-react";
+import { Search, Bell, FileText, Users, CreditCard, Loader2 } from "lucide-react";
 import { MobileMenu } from "./mobile-menu";
 import { ProfileMenu } from "./profile-menu";
-import { useSync } from "@/components/sync-provider";
-import { formatMoney, cn } from "@/lib/utils";
+import { formatMoney } from "@/lib/utils";
 
 interface Result {
   type: string;
@@ -23,7 +22,6 @@ const TYPE_ICON: Record<string, React.ComponentType<{ className?: string }>> = {
 
 export function Topbar() {
   const router = useRouter();
-  const { run: runSync, running: syncing } = useSync();
   const [q, setQ] = useState("");
   const [results, setResults] = useState<Result[]>([]);
   const [open, setOpen] = useState(false);
@@ -117,14 +115,6 @@ export function Topbar() {
       </div>
 
       <div className="ml-auto flex items-center gap-2">
-        <button
-          onClick={runSync}
-          disabled={syncing}
-          className="hidden items-center gap-2 rounded-md bg-primary px-3.5 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--primary-hover)] disabled:opacity-60 sm:inline-flex"
-        >
-          <RefreshCw className={cn("size-4", syncing && "animate-spin")} />
-          {syncing ? "Syncing…" : "Sync"}
-        </button>
         <button className="relative grid size-9 place-items-center rounded-md border border-border-strong bg-surface-muted text-muted-foreground transition-colors hover:bg-primary-soft hover:text-primary">
           <Bell className="size-[18px]" />
           <span className="absolute right-2 top-2 size-2 rounded-full bg-danger ring-2 ring-surface" />
