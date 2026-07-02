@@ -137,26 +137,25 @@ function Body({ s, reload }: { s: Stats; reload: () => void }) {
         {kpis.map((k) => {
           const Icon = k.icon;
           const inner = (
-            <>
-              <div className="flex items-center justify-between">
-                <div className={cn("grid size-11 place-items-center rounded-xl", k.tint)}>
-                  <Icon className="size-5" />
-                </div>
-                {k.trend && (
-                  <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold", k.trend.up ? "bg-success-soft text-success" : "bg-danger-soft text-danger")}>
-                    {k.trend.up ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />}{k.trend.txt}
-                  </span>
-                )}
+            <div className="flex items-center gap-3">
+              <div className={cn("grid size-10 shrink-0 place-items-center rounded-xl", k.tint)}>
+                <Icon className="size-[18px]" />
               </div>
-              <div className="mt-4 text-sm text-muted-foreground">{k.label}</div>
-              <div className="mt-0.5 text-[1.55rem] font-bold tracking-tight text-foreground">{k.value}</div>
-              <div className="mt-1 text-[11px] text-muted-foreground">{k.sub ?? "vs last month"}</div>
-            </>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-xs text-muted-foreground">{k.label}</div>
+                <div className="text-lg font-bold tracking-tight text-foreground">{k.value}</div>
+              </div>
+              {k.trend && (
+                <span className={cn("inline-flex shrink-0 items-center gap-0.5 rounded-full px-2 py-0.5 text-[11px] font-semibold", k.trend.up ? "bg-success-soft text-success" : "bg-danger-soft text-danger")}>
+                  {k.trend.up ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />}{k.trend.txt}
+                </span>
+              )}
+            </div>
           );
           return k.href ? (
-            <Link key={k.label} href={k.href} className="card-hover rounded-2xl border border-border bg-surface p-5 shadow-card">{inner}</Link>
+            <Link key={k.label} href={k.href} className="card-hover rounded-2xl border border-border bg-surface p-4 shadow-card">{inner}</Link>
           ) : (
-            <div key={k.label} className="rounded-2xl border border-border bg-surface p-5 shadow-card">{inner}</div>
+            <div key={k.label} className="rounded-2xl border border-border bg-surface p-4 shadow-card">{inner}</div>
           );
         })}
       </div>
