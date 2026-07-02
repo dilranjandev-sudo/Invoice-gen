@@ -90,7 +90,10 @@ create table if not exists payments (
   mode               text,                 -- UPI / NEFT / IMPS / RTGS / Card …
   channel            text,
   account_detail     text,
-  status             text default 'unmatched', -- unmatched | matched | approved
+  status             text default 'unmatched', -- unmatched | matched | approved | expense
+  type               text default 'bill',      -- bill (needs a match) | expense (salary/rent/tax — no bill)
+  category           text,                     -- expense category when type = 'expense'
+  note               text,                     -- free note (e.g. employee & month for salary)
   subject            text,
   snippet            text,
   matched_invoice_id uuid references invoices(id) on delete set null,

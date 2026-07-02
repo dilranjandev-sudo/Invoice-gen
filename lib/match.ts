@@ -63,6 +63,16 @@ export function scoreMatch(payment: MatchPayment, invoice: MatchInvoice): number
   return Math.min(100, score);
 }
 
+/** Rank every invoice for a payment, best score first. Used by the manual link picker. */
+export function rankMatches<T extends MatchInvoice>(
+  payment: MatchPayment,
+  invoices: T[]
+): { invoice: T; score: number }[] {
+  return invoices
+    .map((invoice) => ({ invoice, score: scoreMatch(payment, invoice) }))
+    .sort((a, b) => b.score - a.score);
+}
+
 /** Pick the best invoice for a payment; returns null if below threshold. */
 export function bestMatch(
   payment: MatchPayment,

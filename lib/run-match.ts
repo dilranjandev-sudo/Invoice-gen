@@ -6,6 +6,7 @@ import { bestMatch, type MatchInvoice, type MatchPayment } from "@/lib/match";
 export async function runMatching(): Promise<number> {
   const payments = (await sql`
     select id, payee, amount, paid_on, matched_invoice_id from payments
+    where coalesce(type, 'bill') <> 'expense'
   `) as unknown as (MatchPayment & { matched_invoice_id: string | null })[];
   const invoices = (await sql`
     select id, vendor_name, total, invoice_date, due_date from invoices

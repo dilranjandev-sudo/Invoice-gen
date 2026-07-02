@@ -21,6 +21,8 @@ import { Input, Select, Field } from "@/components/ui/input";
 import { RowMenu } from "@/components/ui/row-menu";
 import { PageHeader } from "@/components/layout/page-header";
 import { useSync } from "@/components/sync-provider";
+import { LinkBillDrawer, ExpenseDrawer, type ResolveInvoice } from "@/components/payment-resolve";
+import { Link2 } from "lucide-react";
 import { formatMoney, formatDate, cn } from "@/lib/utils";
 
 interface Payment {
@@ -35,6 +37,9 @@ interface Payment {
   channel: string | null;
   account_detail: string | null;
   status: string;
+  type: string | null;
+  category: string | null;
+  note: string | null;
   source_email: string | null;
   matched_invoice_no: string | null;
   match_score: string | number | null;
@@ -44,8 +49,10 @@ interface Payment {
 
 const tabs = [
   { key: "all", label: "All" },
+  { key: "unmatched", label: "Needs action" },
   { key: "matched", label: "Matched" },
-  { key: "unmatched", label: "Unmatched" },
+  { key: "expense", label: "Expenses" },
+  { key: "approved", label: "Approved" },
 ];
 
 function GmailGlyph() {
@@ -69,12 +76,17 @@ export default function PaymentsPage() {
   const [form, setForm] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [viewP, setViewP] = useState<Payment | null>(null);
+  const [invoices, setInvoices] = useState<ResolveInvoice[]>([]);
+  const [linkFor, setLinkFor] = useState<Payment | null>(null);
+  const [expenseFor, setExpenseFor] = useState<Payment | null>(null);
 
   async function load() {
     try {
-      const r = await fetch("/api/payments");
-      const j = await r.json();
+      const [pr, ir] = await Promise.all([fetch("/api/payments"), fetch("/api/invoices")]);
+      const j = await pr.json();
+      const ij = await ir.json();
       setRows(Array.isArray(j) ? j : []);
+      setInvoices(Array.isArray(ij) ? ij : []);
     } catch {
       setRows([]);
     }
@@ -140,8 +152,8 @@ export default function PaymentsPage() {
 
   const all = rows ?? [];
   const sum = all.reduce((s, p) => s + (Number(p.amount) || 0), 0);
-  const matchedCount = all.filter((p) => p.status === "matched").length;
-  const unmatchedCount = all.length - matchedCount;
+  const matchedCount = all.filter((p) => p.status === "matched" || p.status === "approved").length;
+  const unmatchedCount = all.filter((p) => p.status === "unmatched").length;
 
   const data = all.filter((p) => {
     const okTab = tab === "all" || p.status === tab;
@@ -271,6 +283,10 @@ export default function PaymentsPage() {
                         <MatchScore score={p.match_score != null ? Math.round(Number(p.match_score)) : null} />
                         <span className="font-mono text-[11px] text-muted-foreground">{p.matched_invoice_no}</span>
                       </div>
+                    ) : p.status === "expense" ? (
+                      <span className="inline-flex items-center rounded-full bg-info-soft px-2.5 py-0.5 text-[11px] font-medium text-info">
+                        {p.category || "Expense"}
+                      </span>
                     ) : (
                       <span className="text-muted-foreground">—</span>
                     )}
@@ -280,6 +296,24 @@ export default function PaymentsPage() {
                   </td>
                   <td className="px-5 py-3.5">
                     <div className="flex items-center justify-end gap-1">
+                      {p.status === "unmatched" && (
+                        <>
+                          <button
+                            onClick={() => setLinkFor(p)}
+                            title="Link to bill"
+                            className="grid size-8 place-items-center rounded-md border border-border text-muted-foreground hover:bg-primary-soft hover:text-primary"
+                          >
+                            <Link2 className="size-4" />
+                          </button>
+                          <button
+                            onClick={() => setExpenseFor(p)}
+                            title="Mark as expense"
+                            className="grid size-8 place-items-center rounded-md border border-border text-muted-foreground hover:bg-info-soft hover:text-info"
+                          >
+                            <Wallet className="size-4" />
+                          </button>
+                        </>
+                      )}
                       {(p.body || p.subject) && (
                         <button
                           onClick={() => setViewP(p)}
@@ -361,6 +395,9 @@ export default function PaymentsPage() {
           </div>
         )}
       </Drawer>
+
+      <LinkBillDrawer open={linkFor !== null} onClose={() => setLinkFor(null)} payment={linkFor} invoices={invoices} onDone={load} />
+      <ExpenseDrawer open={expenseFor !== null} onClose={() => setExpenseFor(null)} payment={expenseFor} onDone={load} />
     </div>
   );
 }

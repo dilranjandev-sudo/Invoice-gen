@@ -78,7 +78,7 @@ export function Sidebar() {
     function load() {
       fetch("/api/stats")
         .then((r) => r.json())
-        .then((j) => setReviewCount(j?.payments?.matched ?? 0))
+        .then((j) => setReviewCount(j?.payments?.needs_action ?? j?.payments?.matched ?? 0))
         .catch(() => {});
     }
     load();

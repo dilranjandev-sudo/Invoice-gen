@@ -3,6 +3,7 @@ import { oauthClient, google } from "@/lib/google";
 import { sql } from "@/lib/db";
 import { extractInvoice, extractPaymentFromText } from "@/lib/extract";
 import { getRules, evaluateBill, logRejected } from "@/lib/rules";
+import { autoClassifyExpense } from "@/lib/expense";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Account = Record<string, any>;
@@ -119,13 +120,19 @@ export async function runPaymentSync(accounts: Account[]) {
         if (dup.length) continue;
       }
 
+      // Auto-classify obvious direct expenses (salary/rent/tax…) so they skip
+      // the bill-matching queue. Everything else stays a normal "bill" payment.
+      const autoCat = autoClassifyExpense(p.payee, subject, snippet);
+      const type = autoCat ? "expense" : "bill";
+      const initialStatus = autoCat ? "expense" : "unmatched";
+
       await sql`
         insert into payments (
           gmail_account_id, gmail_message_id, payee, amount, currency, paid_on,
-          reference, utr, mode, channel, account_detail, status, subject, snippet, body, raw
+          reference, utr, mode, channel, account_detail, status, type, category, subject, snippet, body, raw
         ) values (
           ${acc.id}, ${m.id}, ${p.payee}, ${p.amount}, ${p.currency ?? "INR"}, ${p.date},
-          ${p.reference}, ${p.utr}, ${p.mode}, ${p.channel}, ${p.accountDetail}, 'unmatched', ${subject}, ${snippet}, ${(body || snippet || "").slice(0, 8000)}, ${sql.json(JSON.parse(JSON.stringify(p)))}
+          ${p.reference}, ${p.utr}, ${p.mode}, ${p.channel}, ${p.accountDetail}, ${initialStatus}, ${type}, ${autoCat}, ${subject}, ${snippet}, ${(body || snippet || "").slice(0, 8000)}, ${sql.json(JSON.parse(JSON.stringify(p)))}
         )
         on conflict (gmail_message_id) do nothing
       `;

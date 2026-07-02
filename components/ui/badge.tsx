@@ -45,6 +45,8 @@ const RECORD_STATUS: Record<string, { tone: Tone; label: string }> = {
   pending: { tone: "warning", label: "Pending" },
   matched: { tone: "success", label: "Matched" },
   approved: { tone: "success", label: "Approved" },
+  expense: { tone: "info", label: "Expense" },
+  unmatched: { tone: "warning", label: "Needs action" },
   paid: { tone: "success", label: "Paid" },
   no_match: { tone: "danger", label: "No Match" },
   multiple: { tone: "violet", label: "Multiple Matches" },

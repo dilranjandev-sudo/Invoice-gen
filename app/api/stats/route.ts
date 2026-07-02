@@ -20,7 +20,9 @@ export async function GET() {
         coalesce(sum(amount), 0) as total,
         count(*) filter (where status = 'matched')::int as matched,
         count(*) filter (where status = 'approved')::int as approved,
-        count(*) filter (where status = 'unmatched')::int as unmatched
+        count(*) filter (where status = 'unmatched')::int as unmatched,
+        count(*) filter (where status = 'expense')::int as expense,
+        count(*) filter (where status in ('matched','unmatched'))::int as needs_action
       from payments
     `;
     const [ven] = await sql`select count(*)::int as n from vendors`;
