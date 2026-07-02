@@ -25,6 +25,8 @@ import {
   LayoutDashboard,
   Receipt,
   Building2,
+  ShoppingCart,
+  CalendarClock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -46,6 +48,7 @@ export const sections = [
       { href: "/review", label: "To Review", icon: ClipboardCheck, review: true },
       { href: "/invoices", label: "Bills", icon: FileText },
       { href: "/payments", label: "Payments", icon: CreditCard },
+      { href: "/purchasing", label: "Purchase Orders", icon: ShoppingCart },
       { href: "/vendors", label: "Vendors", icon: Users },
     ],
   },
@@ -66,6 +69,7 @@ export const sections = [
     label: "Company",
     icon: Building2,
     items: [
+      { href: "/recurring", label: "Recurring", icon: CalendarClock },
       { href: "/subscriptions", label: "Subscriptions", icon: Repeat },
       { href: "/documents", label: "Documents", icon: FolderClosed },
     ],
