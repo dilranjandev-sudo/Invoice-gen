@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Trash2, Pencil, Check, Repeat, AlertTriangle, Clock } from "lucide-react";
+import { Plus, Trash2, Pencil, Check, Repeat, AlertTriangle, Clock, Bell } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Drawer } from "@/components/ui/drawer";
@@ -87,6 +87,18 @@ export default function RecurringPage() {
     load();
   }
 
+  async function remindNow() {
+    toast.loading("Sending reminder…", { id: "rem" });
+    try {
+      const r = await fetch("/api/recurring/remind", { method: "POST" });
+      const j = await r.json();
+      if (j.sent) toast.success(`Reminder emailed — ${j.count} item(s) due`, { id: "rem" });
+      else toast.message(j.reason === "no_gmail" ? "Connect a Gmail first (Gmail page)" : j.reason === "nothing_due" ? "Nothing due in the next 7 days" : "Reminder not sent", { id: "rem" });
+    } catch {
+      toast.error("Failed", { id: "rem" });
+    }
+  }
+
   async function del(id: string) {
     toast("Delete this recurring expense?", {
       action: { label: "Delete", onClick: async () => { await fetch("/api/recurring", { method: "DELETE", headers: { "content-type": "application/json" }, body: JSON.stringify({ id }) }); toast.success("Deleted"); load(); } },
@@ -109,7 +121,12 @@ export default function RecurringPage() {
       <PageHeader
         title="Recurring"
         description="Rent, subscriptions & services you pay on a schedule — with renewal reminders."
-        actions={<Button onClick={openNew}><Plus className="size-4" /> Add recurring</Button>}
+        actions={
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={remindNow}><Bell className="size-4" /> Send reminder</Button>
+            <Button onClick={openNew}><Plus className="size-4" /> Add recurring</Button>
+          </div>
+        }
       />
 
       {rows === null ? (

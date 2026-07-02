@@ -11,15 +11,21 @@ export async function register() {
   g.__prKeepWarm = true;
 
   const { sql } = await import("@/lib/db");
-  const ping = async () => {
+  const tick = async () => {
     try {
-      await sql`select 1`;
+      await sql`select 1`; // keep the pool + Supabase project warm
     } catch {
       /* ignore — next tick will retry */
     }
+    try {
+      const { runRecurringReminders } = await import("@/lib/reminders");
+      await runRecurringReminders(); // self-guards to once/day
+    } catch {
+      /* ignore */
+    }
   };
 
-  await ping(); // warm immediately on boot
-  const iv = setInterval(ping, 3 * 60 * 1000); // every 3 minutes
+  await tick(); // warm + check immediately on boot
+  const iv = setInterval(tick, 3 * 60 * 1000); // every 3 minutes
   if (typeof iv.unref === "function") iv.unref();
 }
