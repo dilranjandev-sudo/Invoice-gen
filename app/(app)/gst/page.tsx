@@ -90,7 +90,7 @@ export default function GstPage() {
             {d.monthly.map((m, i) => (
               <div key={i} className="flex flex-1 flex-col items-center gap-2">
                 <div className="flex h-full w-full max-w-[44px] items-end overflow-hidden rounded-md bg-surface-muted">
-                  <div className="w-full rounded-md bg-gradient-to-t from-[#2563eb] to-[#60a5fa]" style={{ height: `${Math.max((n(m.gst) / maxM) * 100, 2)}%` }} title={formatMoney(n(m.gst))} />
+                  <div className="w-full rounded-md bg-gradient-to-t from-[#e41f07] to-[#ff8a72]" style={{ height: `${Math.max((n(m.gst) / maxM) * 100, 2)}%` }} title={formatMoney(n(m.gst))} />
                 </div>
                 <span className="text-xs text-muted-foreground">{m.label}</span>
               </div>
